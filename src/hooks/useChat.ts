@@ -51,19 +51,6 @@ export const useChat = (
     if (!code.trim()) return;
 
     let targetId = activeId;
-    if (!targetId) {
-      const newSession: ChatSession = {
-        id: Date.now().toString(),
-        title: code.trim().slice(0, 30) + (code.trim().length > 30 ? '...' : ''),
-        messages: [],
-        focusModes: DEFAULT_FOCUS_MODES,
-        createdAt: Date.now()
-      };
-      setSessions(prev => [newSession, ...prev]);
-      setActiveId(newSession.id);
-      targetId = newSession.id;
-    }
-
     let currentCode = code;
     setIsReviewing(true);
     setError('');
@@ -85,9 +72,23 @@ export const useChat = (
       timestamp: new Date().toLocaleTimeString()
     };
 
-    setSessions(prev => prev.map(s =>
-      s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s
-    ));
+    if (!targetId) {
+      const newSession: ChatSession = {
+        id: crypto.randomUUID(),
+        title: currentCode.trim().slice(0, 30) + (currentCode.trim().length > 30 ? '...' : ''),
+        messages: [userMessage],
+        focusModes: DEFAULT_FOCUS_MODES,
+        createdAt: Date.now()
+      };
+      setSessions(prev => [newSession, ...prev]);
+      setActiveId(newSession.id);
+      targetId = newSession.id;
+    } else {
+      setSessions(prev => prev.map(s =>
+        s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s
+      ));
+    }
+
     setCode('');
 
     try {
@@ -157,18 +158,6 @@ export const useChat = (
     setError('');
 
     let targetId = activeId;
-    if (!targetId) {
-        const newSession: ChatSession = {
-            id: Date.now().toString(),
-            title: `PR Review: ${owner}/${repo} #${pullNumber}`,
-            messages: [],
-            focusModes: DEFAULT_FOCUS_MODES,
-            createdAt: Date.now()
-        };
-        setSessions(prev => [newSession, ...prev]);
-        setActiveId(newSession.id);
-        targetId = newSession.id;
-    }
 
     try {
       const octokit = getOctokit(githubToken);
@@ -182,11 +171,25 @@ export const useChat = (
       });
 
       const userMessage: Message = { role: 'user', content: `Analyze PR #${pullNumber}`, code: combinedStr, timestamp: new Date().toLocaleTimeString() };
-      setSessions(prev => prev.map(s => s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s));
+
+      if (!targetId) {
+        const newSession: ChatSession = {
+          id: crypto.randomUUID(),
+          title: `PR Review: ${owner}/${repo} #${pullNumber}`,
+          messages: [userMessage],
+          focusModes: DEFAULT_FOCUS_MODES,
+          createdAt: Date.now()
+        };
+        setSessions(prev => [newSession, ...prev]);
+        setActiveId(newSession.id);
+        targetId = newSession.id;
+      } else {
+        setSessions(prev => prev.map(s => s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s));
+      }
 
       const parsed = await analyzePR(combinedStr, apiKey);
       const reviews = (parsed.reviews || []) as GithubReview[];
-      let finalAiMessage = reviews.length > 0 
+      let finalAiMessage = reviews.length > 0
         ? `✅ **Successfully generated PR review. Attempting to post...**\n\n` + reviews.map((r: GithubReview) => `### File: \`${r.path}\` (Line ~${r.line})\n${r.body}`).join('\n\n---\n\n')
         : `✅ **PR #${pullNumber} is pristine.** No issues found!`;
 

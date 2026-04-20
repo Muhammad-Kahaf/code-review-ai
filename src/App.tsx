@@ -75,11 +75,7 @@ export default function App() {
   const handleLogout = () => {
     googleLogout();
     setUser(null);
-    setSessions([]);
-    setActiveId(null);
     localStorage.removeItem('review_user');
-    localStorage.removeItem('review_sessions');
-    localStorage.removeItem('active_session_id');
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
