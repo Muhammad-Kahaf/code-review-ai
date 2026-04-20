@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui;
+  --font-display: "Outfit", ui-sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+
+  --color-brand-primary: #10b981;
+  --color-brand-secondary: #0ea5e9;
+
+  --shadow-premium: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 10px 30px -10px rgba(0, 0, 0, 0.1), 0 20px 60px -15px rgba(0, 0, 0, 0.05);
+  --shadow-premium-hover: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 20px 40px -15px rgba(0, 0, 0, 0.15), 0 30px 80px -20px rgba(0, 0, 0, 0.1);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #09090b;
+  --surface: #fafafa;
+  --surface-hover: #f4f4f5;
+  --border: #e4e4e7;
+  --muted: #71717a;
+  --glass: rgba(255, 255, 255, 0.5);
+  --grid-color: rgba(9, 9, 11, 0.04);
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  --border: #27272a;
+  --muted: #a1a1aa;
+  --glass: rgba(9, 9, 11, 0.6);
+  --grid-color: rgba(250, 250, 250, 0.02);
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased selection:bg-emerald-500/20;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+@layer utilities {
+  .glass-effect {
+    background-color: var(--glass);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--border);
+  }
+
+  .grid-bg {
+    background-image: radial-gradient(circle at 1.5px 1.5px, var(--grid-color) 1.5px, transparent 0);
+    background-size: 32px 32px;
+  }
+
+  .inner-border {
+    position: relative;
+  }
+
+  .inner-border::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .dark .inner-border::after {
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  .theme-transition {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+::selection {
+  background-color: #10b98130;
+  color: inherit;
+}
