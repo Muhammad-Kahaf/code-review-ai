@@ -79,12 +79,12 @@ ${combinedDiff}`;
     }
   );
 
-  let content = response.data.choices[0].message.content;
+  const content: string = response.data.choices[0].message.content;
   try {
     return JSON.parse(content);
   } catch (e) {
     const match = content.match(/\{[\s\S]*\}/);
     if (match) return JSON.parse(match[0]);
-    throw new Error('Failed to parse AI response as JSON');
+    throw new Error(e || 'Failed to parse AI response as JSON');
   }
 };
