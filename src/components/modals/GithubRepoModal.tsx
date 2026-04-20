@@ -96,7 +96,7 @@ export const GithubRepoModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-background w-full max-w-2xl max-h-[85vh] rounded-[24px] border border-border flex flex-col shadow-2xl overflow-hidden"
+        className="bg-background w-full max-w-2xl h-[85dvh] rounded-[24px] border border-border flex flex-col shadow-2xl overflow-hidden"
       >
         <div className="p-6 border-b border-border bg-surface/50 backdrop-blur-md flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
