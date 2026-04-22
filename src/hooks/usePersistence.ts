@@ -1,91 +1,161 @@
 import { useState, useEffect } from 'react';
-import type { User, ChatSession, LegacyReviewItem } from '../types';
+import type { User, ChatSession } from '../types';
+import { EncryptionService } from '../services/encryptionService';
+import { FirebaseService } from '../services/firebaseService';
 
 const getEmailKey = (user: User | null) => user?.email.replace(/[.@]/g, '_');
 
 const loadInitialSessions = (emailKey: string | undefined): ChatSession[] => {
   if (!emailKey) return [];
   
-  const saved = localStorage.getItem(`review_sessions_${emailKey}`);
-  if (saved) return JSON.parse(saved);
-
-  // Fallback to legacy
-  const legacy = localStorage.getItem('review_sessions');
-  if (legacy) return JSON.parse(legacy);
-
-  const history = localStorage.getItem('review_history');
-  if (history) {
-    const parsed = JSON.parse(history);
-    if (parsed.length > 0) {
-      return [{
-        id: 'legacy-session',
-        title: 'Legacy Review History',
-        messages: parsed.flatMap((r: LegacyReviewItem) => [
-          { role: 'user', content: 'Review Code', code: r.code, timestamp: r.timestamp },
-          { role: 'assistant', content: r.content, timestamp: r.timestamp }
-        ]),
-        focusModes: ['Security', 'Performance', 'Clean Code', 'Logic'],
-        createdAt: Date.now()
-      }];
-    }
+  // Try loading from encrypted local cache first
+  const hashedKey = EncryptionService.hashKey(`review_sessions_v2_${emailKey}`);
+  const encryptedSaved = localStorage.getItem(hashedKey);
+  if (encryptedSaved) {
+    const decrypted = EncryptionService.decryptObject<ChatSession[]>(encryptedSaved, emailKey);
+    if (decrypted) return decrypted;
   }
+
+  // Fallback to v1 (legacy migration)
+  const hashedKeyV1 = EncryptionService.hashKey(`review_sessions_${emailKey}`);
+  const v1 = localStorage.getItem(hashedKeyV1);
+  if (v1) {
+    const decrypted = EncryptionService.decryptObject<ChatSession[]>(v1, emailKey);
+    if (decrypted) return decrypted.map(s => ({ ...s, messages: [] }));
+  }
+
   return [];
 };
 
-export const usePersistence = () => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('review_user');
-    return saved ? JSON.parse(saved) : null;
+export const usePersistence = (activeId: string | null | undefined) => {
+  const [user, setUserInternal] = useState<User | null>(() => {
+    const hashedKey = EncryptionService.hashKey('review_user');
+    const encrypted = localStorage.getItem(hashedKey);
+    if (encrypted) {
+      return EncryptionService.decryptObject<User>(encrypted);
+    }
+    return null;
   });
 
+  const setUser = (newUser: User | null) => {
+    if (!newUser) setLastSyncedEmail(null);
+    setUserInternal(newUser);
+  };
+
+  const [lastSyncedEmail, setLastSyncedEmail] = useState<string | null>(null);
   const emailKey = getEmailKey(user);
 
-  const [githubToken, setGithubToken] = useState(() => 
-    emailKey ? localStorage.getItem(`review_github_token_${emailKey}`) || '' : ''
-  );
+  // Derived loading state
+  const isLoadingSessions = !!user && user.email !== lastSyncedEmail;
+
+  const [githubToken, setGithubToken] = useState(() => {
+    if (!emailKey) return '';
+    const hashedKey = EncryptionService.hashKey(`review_github_token_${emailKey}`);
+    const encrypted = localStorage.getItem(hashedKey);
+    return encrypted ? EncryptionService.decrypt(encrypted, emailKey) : '';
+  });
   
-  const [sessions, setSessions] = useState<ChatSession[]>(() => 
-    loadInitialSessions(emailKey)
-  );
+  const [sessions, setSessions] = useState<ChatSession[]>(() => {
+    if (!emailKey) return [];
+    return loadInitialSessions(emailKey);
+  });
 
-  const [activeId, setActiveId] = useState<string | null>(() => 
-    emailKey ? localStorage.getItem(`active_session_id_${emailKey}`) : null
-  );
-
-  // Sync state during render if user changed (Prevents Cascading Renders)
   const [prevUser, setPrevUser] = useState(user);
   if (user?.email !== prevUser?.email) {
     setPrevUser(user);
     const newEmailKey = getEmailKey(user);
+    
     if (!user) {
       setSessions([]);
       setGithubToken('');
-      setActiveId(null);
     } else {
-      const newSessions = loadInitialSessions(newEmailKey);
-      setSessions(newSessions);
-      setGithubToken(localStorage.getItem(`review_github_token_${newEmailKey}`) || '');
-      setActiveId(localStorage.getItem(`active_session_id_${newEmailKey}`));
+      const cachedSessions = loadInitialSessions(newEmailKey);
+      setSessions(cachedSessions);
+      
+      const hashedTokenKey = EncryptionService.hashKey(`review_github_token_${newEmailKey}`);
+      const encryptedToken = localStorage.getItem(hashedTokenKey);
+      setGithubToken(encryptedToken ? EncryptionService.decrypt(encryptedToken, newEmailKey) : '');
     }
   }
 
-  // Persistent Effects (Saving)
+  // Cloud Sync Effect - Only Metadata
   useEffect(() => {
-    localStorage.setItem('review_user', JSON.stringify(user));
-  }, [user]);
+    if (!user || user.email === lastSyncedEmail) return;
+
+    Promise.all([
+      FirebaseService.getUserSessions(user.email),
+      FirebaseService.getGitHubToken(user.email),
+      FirebaseService.upsertUser(user)
+    ]).then(([cloudSessions, cloudToken]) => {
+      // Merge cloud sessions with local sessions instead of overwriting
+      setSessions(prev => {
+        const merged = [...prev];
+        cloudSessions.forEach(cloudS => {
+          const existingIdx = merged.findIndex(s => s.id === cloudS.id);
+          if (existingIdx >= 0) {
+            // Update metadata but keep messages if they already exist locally
+            merged[existingIdx] = {
+              ...merged[existingIdx],
+              title: cloudS.title,
+              createdAt: cloudS.createdAt,
+              focusModes: cloudS.focusModes
+            };
+          } else {
+            // Add new session from cloud
+            merged.push(cloudS);
+          }
+        });
+        // Sort by createdAt descending
+        return merged.sort((a, b) => b.createdAt - a.createdAt);
+      });
+
+      if (cloudToken) setGithubToken(cloudToken);
+      setLastSyncedEmail(user.email);
+    })
+    .catch((err) => {
+      console.error(err);
+      setLastSyncedEmail(user.email);
+    });
+  }, [user?.email, lastSyncedEmail]);
 
   useEffect(() => {
-    if (!user) return;
+    const hashedKey = EncryptionService.hashKey('review_user');
+    if (user) {
+      localStorage.setItem(hashedKey, EncryptionService.encryptObject(user));
+    } else {
+      localStorage.removeItem(hashedKey);
+    }
+  }, [user]);
+
+  // Local Storage persistence for metadata
+  useEffect(() => {
+    if (!user || isLoadingSessions) return;
     const key = getEmailKey(user);
-    localStorage.setItem(`review_github_token_${key}`, githubToken);
-    localStorage.setItem(`review_sessions_${key}`, JSON.stringify(sessions));
-    if (activeId) localStorage.setItem(`active_session_id_${key}`, activeId);
-  }, [user, githubToken, sessions, activeId]);
+    
+    const hashedTokenKey = EncryptionService.hashKey(`review_github_token_${key}`);
+    const hashedSessionsKey = EncryptionService.hashKey(`review_sessions_v2_${key}`);
+
+    localStorage.setItem(hashedTokenKey, EncryptionService.encrypt(githubToken, key));
+    localStorage.setItem(hashedSessionsKey, EncryptionService.encryptObject(sessions, key));
+
+    FirebaseService.saveGitHubToken(user.email, githubToken).catch(console.error);
+  }, [user, githubToken, sessions, isLoadingSessions]);
+
+  // Specific Cloud Sync for the active session (including messages)
+  useEffect(() => {
+    if (!user || sessions.length === 0 || isLoadingSessions || !activeId) return;
+    
+    const current = sessions.find(s => s.id === activeId);
+    // Only save if there are messages to save
+    if (current && current.messages && current.messages.length > 0) {
+        FirebaseService.saveSession(user.email, current).catch(console.error);
+    }
+  }, [sessions, activeId, user, isLoadingSessions]);
 
   return {
     user, setUser,
     githubToken, setGithubToken,
     sessions, setSessions,
-    activeId, setActiveId
+    isLoadingSessions
   };
 };

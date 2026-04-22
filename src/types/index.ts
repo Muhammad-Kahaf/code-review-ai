@@ -1,8 +1,10 @@
 export interface Message {
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
   code?: string;
   timestamp: string;
+  createdAt: number;
 }
 
 export interface ChatSession {

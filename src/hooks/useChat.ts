@@ -1,22 +1,55 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { ChatSession, Message, GithubReview } from '../types';
+import { useNavigate, useLocation } from 'react-router-dom';
+import type { ChatSession, Message, GithubReview, User } from '../types';
 import { analyzeCode, analyzePR } from '../services/groqService';
 import { fetchGithubContent, getOctokit, decodeBase64UTF8 } from '../services/githubService';
+import { FirebaseService } from '../services/firebaseService';
 import { VALID_EXTENSIONS, DEFAULT_FOCUS_MODES } from '../config';
 
 export const useChat = (
+  user: User | null,
   sessions: ChatSession[],
   setSessions: React.Dispatch<React.SetStateAction<ChatSession[]>>,
-  activeId: string | null,
-  setActiveId: (id: string | null) => void,
   apiKey: string,
   githubToken: string
 ) => {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const activeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : undefined;
+
   const [code, setCode] = useState('');
   const [isReviewing, setIsReviewing] = useState(false);
   const [focusModes, setFocusModes] = useState(DEFAULT_FOCUS_MODES);
   const [error, setError] = useState('');
   const [lang, setLang] = useState('English');
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
+
+  // Fetch messages when activeId changes (Lazy Loading)
+  useEffect(() => {
+    if (!user || !activeId) return;
+
+    const session = sessions.find(s => s.id === activeId);
+
+    // If the session exists and has NO messages, and WE HAVEN'T LOADED IT YET, fetch them
+    if (session && session.messages.length === 0 && !loadedIds.has(activeId)) {
+      setIsLoadingMessages(true);
+      FirebaseService.getSessionMessages(user.email, activeId)
+        .then(messages => {
+          setSessions(prev => prev.map(s =>
+            s.id === activeId ? { ...s, messages } : s
+          ));
+          setLoadedIds(prev => new Set(prev).add(activeId));
+        })
+        .catch(console.error)
+        .finally(() => setIsLoadingMessages(false));
+    } else if (session && (session.messages.length > 0 || loadedIds.has(activeId))) {
+      // Mark as loaded if it already has messages (e.g. locally created)
+      if (!loadedIds.has(activeId)) {
+        setLoadedIds(prev => new Set(prev).add(activeId));
+      }
+    }
+  }, [activeId, user?.email, sessions.length, loadedIds]);
 
   useEffect(() => {
     const userLang = navigator.language || 'en-US';
@@ -30,25 +63,32 @@ export const useChat = (
   }, []);
 
   const createNewChat = () => {
+    const newId = crypto.randomUUID();
     const newSession: ChatSession = {
-      id: crypto.randomUUID(),
+      id: newId,
       title: 'New Review',
       messages: [],
       focusModes: DEFAULT_FOCUS_MODES,
       createdAt: Date.now()
     };
     setSessions(prev => [newSession, ...prev]);
-    setActiveId(newSession.id);
+    navigate(`/chat/${newId}`);
   };
 
-  const deleteSession = (e: React.MouseEvent, id: string) => {
+  const deleteSession = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
     e.stopPropagation();
+    if (!user) return;
+
     setSessions(prev => prev.filter(s => s.id !== id));
-    if (activeId === id) setActiveId(null);
+    await FirebaseService.deleteSession(user.email, id);
+    if (activeId === id) {
+      navigate('/', { replace: true });
+    }
   };
 
   const handleReview = useCallback(async () => {
-    if (!code.trim()) return;
+    if (!code.trim() || !user) return;
 
     let targetId = activeId;
     let currentCode = code;
@@ -66,23 +106,26 @@ export const useChat = (
     }
 
     const userMessage: Message = {
+      id: crypto.randomUUID(),
       role: 'user',
       content: 'Review this code',
       code: currentCode,
-      timestamp: new Date().toLocaleTimeString()
+      timestamp: new Date().toLocaleTimeString(),
+      createdAt: Date.now()
     };
 
     if (!targetId) {
+      const newId = crypto.randomUUID();
       const newSession: ChatSession = {
-        id: crypto.randomUUID(),
-        title: currentCode.trim().slice(0, 30) + (currentCode.trim().length > 30 ? '...' : ''),
+        id: newId,
+        title: currentCode.trim().slice(0, 30).replace(/\n/g, ' ') + (currentCode.trim().length > 30 ? '...' : ''),
         messages: [userMessage],
         focusModes: DEFAULT_FOCUS_MODES,
         createdAt: Date.now()
       };
       setSessions(prev => [newSession, ...prev]);
-      setActiveId(newSession.id);
-      targetId = newSession.id;
+      navigate(`/chat/${newId}`);
+      targetId = newId;
     } else {
       setSessions(prev => prev.map(s =>
         s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s
@@ -94,9 +137,11 @@ export const useChat = (
     try {
       const result = await analyzeCode(currentCode, apiKey, focusModes, lang);
       const aiMessage: Message = {
+        id: crypto.randomUUID(),
         role: 'assistant',
         content: result,
-        timestamp: new Date().toLocaleTimeString()
+        timestamp: new Date().toLocaleTimeString(),
+        createdAt: Date.now()
       };
 
       setSessions(prev => prev.map(s => {
@@ -114,7 +159,7 @@ export const useChat = (
     } finally {
       setIsReviewing(false);
     }
-  }, [code, lang, apiKey, focusModes, activeId, sessions, setSessions, setActiveId]);
+  }, [code, lang, apiKey, focusModes, activeId, user, setSessions, navigate]);
 
   const handleRepoSelect = async (owner: string, repo: string, defaultBranch: string) => {
     setIsReviewing(true);
@@ -154,6 +199,7 @@ export const useChat = (
   };
 
   const handlePRSelect = async (owner: string, repo: string, pullNumber: number) => {
+    if (!user) return;
     setIsReviewing(true);
     setError('');
 
@@ -170,19 +216,27 @@ export const useChat = (
         combinedStr += file.patch ? `/* DIFF PATCH:\n${file.patch}\n*/\n\n` : `// (No diff patch available)\n\n`;
       });
 
-      const userMessage: Message = { role: 'user', content: `Analyze PR #${pullNumber}`, code: combinedStr, timestamp: new Date().toLocaleTimeString() };
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: `Analyze PR #${pullNumber}`,
+        code: combinedStr,
+        timestamp: new Date().toLocaleTimeString(),
+        createdAt: Date.now()
+      };
 
       if (!targetId) {
+        const newId = crypto.randomUUID();
         const newSession: ChatSession = {
-          id: crypto.randomUUID(),
+          id: newId,
           title: `PR Review: ${owner}/${repo} #${pullNumber}`,
           messages: [userMessage],
           focusModes: DEFAULT_FOCUS_MODES,
           createdAt: Date.now()
         };
         setSessions(prev => [newSession, ...prev]);
-        setActiveId(newSession.id);
-        targetId = newSession.id;
+        navigate(`/chat/${newId}`);
+        targetId = newId;
       } else {
         setSessions(prev => prev.map(s => s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s));
       }
@@ -199,7 +253,13 @@ export const useChat = (
         finalAiMessage += `\n\n⚠️ **Failed to post to GitHub:** ${githubErr instanceof Error ? githubErr.message : String(githubErr)}`;
       }
 
-      const aiMessage: Message = { role: 'assistant', content: finalAiMessage, timestamp: new Date().toLocaleTimeString() };
+      const aiMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: finalAiMessage,
+        timestamp: new Date().toLocaleTimeString(),
+        createdAt: Date.now()
+      };
       setSessions(prev => prev.map(s => s.id === targetId ? { ...s, messages: [...s.messages, aiMessage] } : s));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to analyze PR.');
@@ -211,9 +271,11 @@ export const useChat = (
   return {
     code, setCode,
     isReviewing, setIsReviewing,
+    isLoadingMessages,
     focusModes, setFocusModes,
     error, setError,
     lang,
+    activeId,
     createNewChat,
     deleteSession,
     handleReview,

@@ -8,6 +8,7 @@ import {
   LogOut, 
   Globe 
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import type { User, ChatSession } from '../../types';
 import React from 'react';
 
@@ -16,8 +17,8 @@ interface SidebarProps {
   setIsOpen: (val: boolean) => void;
   user: User | null;
   sessions: ChatSession[];
-  activeId: string | null;
-  setActiveId: (id: string) => void;
+  isLoading?: boolean;
+  activeId?: string | null;
   createNewChat: () => void;
   deleteSession: (e: React.MouseEvent, id: string) => void;
   handleLogout: () => void;
@@ -29,13 +30,102 @@ export const Sidebar = ({
   setIsOpen,
   user,
   sessions,
+  isLoading = false,
   activeId,
-  setActiveId,
   createNewChat,
   deleteSession,
   handleLogout,
   lang
 }: SidebarProps) => {
+  const renderSessions = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-3 px-1">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-9 w-full bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-xl" />
+          ))}
+        </div>
+      );
+    }
+
+    if (sessions.length === 0) {
+      return (
+        <div className="px-3 py-6 text-center border border-dashed border-border rounded-xl bg-background/50">
+          <p className="text-[10px] text-muted uppercase tracking-widest font-black leading-relaxed">System Idle</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        {sessions.map((s) => (
+          <NavLink
+            key={s.id}
+            to={`/chat/${s.id}`}
+            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer group transition-all duration-200 border ${isActive
+              ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+              : 'border-transparent text-muted hover:bg-surface-hover hover:text-foreground'
+              }`}
+          >
+            <MessageSquare size={14} className={activeId === s.id ? 'text-emerald-500' : 'text-muted/60 group-hover:text-emerald-500/50'} />
+            <span className="text-xs truncate flex-1 font-bold tracking-tight">{s.title}</span>
+            <button
+              type="button"
+              onClick={(e) => deleteSession(e, s.id)}
+              className={`p-1 rounded-md transition-all ${activeId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} hover:text-red-500 hover:bg-red-500/10`}
+            >
+              <Trash2 size={12} />
+            </button>
+          </NavLink>
+        ))}
+      </div>
+    );
+  };
+
+  const renderMobileSessions = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-3 px-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-12 w-full bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-2xl" />
+          ))}
+        </div>
+      );
+    }
+
+    if (sessions.length === 0) {
+      return (
+        <div className="px-4 py-12 text-center border-2 border-dashed rounded-2xl">
+          <p className="text-xs text-muted italic font-medium">No reviews found.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {sessions.map((s) => (
+          <NavLink
+            key={s.id}
+            to={`/chat/${s.id}`}
+            onClick={() => setIsOpen(false)}
+            className={({ isActive }) => `flex items-center gap-3 p-3.5 rounded-xl cursor-pointer group transition-all duration-200 border ${isActive
+              ? 'bg-emerald-500/10 border-emerald-500/50 text-foreground ring-1 ring-emerald-500/20'
+              : 'border-transparent text-muted hover:bg-surface-hover hover:text-foreground'
+              }`}
+          >
+            <MessageSquare size={16} className={`shrink-0 ${activeId === s.id ? 'text-emerald-500' : 'text-slate-400'}`} />
+            <span className="text-sm truncate flex-1 font-semibold tracking-tight">{s.title}</span>
+            <button
+              onClick={(e) => deleteSession(e, s.id)}
+              className={`p-1.5 rounded-lg transition-all ${activeId === s.id ? 'opacity-100' : 'opacity-0'} hover:text-red-500 hover:bg-red-500/10`}
+            >
+              <Trash2 size={14} />
+            </button>
+          </NavLink>
+        ))}
+      </div>
+    );
+  };
   return (
     <>
       <motion.aside
@@ -65,35 +155,7 @@ export const Sidebar = ({
               <History size={12} strokeWidth={2.5} />
               Archives
             </p>
-            {sessions.length === 0 ? (
-              <div className="px-3 py-6 text-center border border-dashed border-border rounded-xl bg-background/50">
-                <p className="text-[10px] text-muted uppercase tracking-widest font-black leading-relaxed">System Idle</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {sessions.map((s) => (
-                  <motion.div
-                    key={s.id}
-                    layout
-                    whileHover={{ x: 2 }}
-                    onClick={() => setActiveId(s.id)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer group transition-all duration-200 border ${activeId === s.id
-                      ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                      : 'border-transparent text-muted hover:bg-surface-hover hover:text-foreground'
-                      }`}
-                  >
-                    <MessageSquare size={14} className={activeId === s.id ? 'text-emerald-500' : 'text-muted/60 group-hover:text-emerald-500/50'} />
-                    <span className="text-xs truncate flex-1 font-bold tracking-tight">{s.title}</span>
-                    <button
-                      onClick={(e) => deleteSession(e, s.id)}
-                      className={`p-1 rounded-md transition-all ${activeId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} hover:text-red-500 hover:bg-red-500/10`}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            {renderSessions()}
           </div>
         </div>
 
@@ -158,33 +220,7 @@ export const Sidebar = ({
                     <History size={14} className="text-emerald-500" />
                     Review History
                   </p>
-                  {sessions.length === 0 ? (
-                    <div className="px-4 py-12 text-center border-2 border-dashed rounded-2xl">
-                      <p className="text-xs text-muted italic font-medium">No reviews found.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {sessions.map((s) => (
-                        <div
-                          key={s.id}
-                          onClick={() => { setActiveId(s.id); setIsOpen(false); }}
-                          className={`flex items-center gap-3 p-3.5 rounded-xl cursor-pointer group transition-all duration-200 border ${activeId === s.id
-                            ? 'bg-emerald-500/10 border-emerald-500/50 text-foreground ring-1 ring-emerald-500/20'
-                            : 'border-transparent text-muted hover:bg-surface-hover hover:text-foreground'
-                            }`}
-                        >
-                          <MessageSquare size={16} className={`shrink-0 ${activeId === s.id ? 'text-emerald-500' : 'text-slate-400'}`} />
-                          <span className="text-sm truncate flex-1 font-semibold tracking-tight">{s.title}</span>
-                          <button
-                            onClick={(e) => deleteSession(e, s.id)}
-                            className={`p-1.5 rounded-lg transition-all ${activeId === s.id ? 'opacity-100' : 'opacity-0'} hover:text-red-500 hover:bg-red-500/10`}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {renderMobileSessions()}
                 </div>
               </div>
 

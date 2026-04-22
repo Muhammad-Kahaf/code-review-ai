@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { googleLogout } from '@react-oauth/google';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Prism from 'prismjs';
 import { PanelLeft, Sun, Moon, Settings } from 'lucide-react';
 
@@ -34,12 +35,15 @@ import type { User } from './types';
 import { GROQ_API_KEY } from './config';
 
 export default function App() {
+  const { pathname } = useLocation();
+  const sessionId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : undefined;
+
   const {
     user, setUser,
     githubToken, setGithubToken,
     sessions, setSessions,
-    activeId, setActiveId
-  } = usePersistence();
+    isLoadingSessions
+  } = usePersistence(sessionId);
 
   const { isDark, setIsDark } = useTheme();
   const [apiKey, setApiKey] = useState(GROQ_API_KEY);
@@ -47,15 +51,17 @@ export default function App() {
   const {
     code, setCode,
     isReviewing,
+    isLoadingMessages,
     focusModes, setFocusModes,
     error,
     lang,
+    activeId,
     createNewChat,
     deleteSession,
     handleReview,
     handleRepoSelect,
     handlePRSelect
-  } = useChat(sessions, setSessions, activeId, setActiveId, apiKey, githubToken);
+  } = useChat(user, sessions, setSessions, apiKey, githubToken);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -75,7 +81,7 @@ export default function App() {
   const handleLogout = () => {
     googleLogout();
     setUser(null);
-    localStorage.removeItem('review_user');
+    localStorage.clear(); // Clear all (v1, v2 and user)
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,6 +129,65 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const renderContent = () => (
+    <div className="flex-1 flex flex-col relative overflow-hidden h-full">
+      <header className="h-16 shrink-0 flex items-center justify-between px-6 md:px-12 border-b border-border bg-background z-20">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-all duration-300 border border-transparent hover:border-border"
+            aria-label="Toggle sidebar"
+          >
+            <PanelLeft size={18} />
+          </button>
+          <h2 className="text-xs font-black text-foreground uppercase tracking-[0.25em] px-2 border-l border-border h-4 flex items-center ml-2">
+            {activeSession ? activeSession.title : 'Overview'}
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border hover:border-emerald-500/30 text-muted hover:text-foreground transition-all duration-300 text-[10px] font-black uppercase tracking-widest"
+          >
+            {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            {isDark ? 'Light' : 'Dark'}
+          </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 rounded-full bg-surface border border-border hover:border-emerald-500/30 text-muted hover:text-foreground transition-all duration-300 shadow-sm"
+          >
+            <Settings size={18} />
+          </button>
+        </div>
+      </header>
+
+      <ChatArea 
+        activeSession={activeSession}
+        activeId={activeId}
+        isReviewing={isReviewing}
+        isLoadingMessages={isLoadingMessages}
+        downloadReport={downloadReport}
+      />
+
+      <CommandBar 
+        code={code}
+        setCode={setCode}
+        isReviewing={isReviewing}
+        handleReview={handleReview}
+        error={error}
+        focusModes={focusModes}
+        setFocusModes={setFocusModes}
+        isDragging={isDragging}
+        setIsDragging={setIsDragging}
+        onDrop={onDrop}
+        handleFileUpload={handleFileUpload}
+        fileInputRef={fileInputRef}
+        setShowGithubModal={setShowGithubModal}
+      />
+    </div>
+  );
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background theme-transition">
       <AnimatePresence>
@@ -152,70 +217,18 @@ export default function App() {
         setIsOpen={setSidebarOpen}
         user={user}
         sessions={sessions}
+        isLoading={isLoadingSessions}
         activeId={activeId}
-        setActiveId={setActiveId}
         createNewChat={createNewChat}
         deleteSession={deleteSession}
         handleLogout={handleLogout}
         lang={lang}
       />
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col relative overflow-hidden h-full">
-        <header className="h-16 shrink-0 flex items-center justify-between px-6 md:px-12 border-b border-border bg-background z-20">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-all duration-300 border border-transparent hover:border-border"
-              aria-label="Toggle sidebar"
-            >
-              <PanelLeft size={18} />
-            </button>
-            <h2 className="text-xs font-black text-foreground uppercase tracking-[0.25em] px-2 border-l border-border h-4 flex items-center ml-2">
-              {activeSession ? activeSession.title : 'Overview'}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border hover:border-emerald-500/30 text-muted hover:text-foreground transition-all duration-300 text-[10px] font-black uppercase tracking-widest"
-            >
-              {isDark ? <Sun size={14} /> : <Moon size={14} />}
-              {isDark ? 'Light' : 'Dark'}
-            </button>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-2 rounded-full bg-surface border border-border hover:border-emerald-500/30 text-muted hover:text-foreground transition-all duration-300 shadow-sm"
-            >
-              <Settings size={18} />
-            </button>
-          </div>
-        </header>
-
-        <ChatArea 
-          activeSession={activeSession}
-          activeId={activeId}
-          isReviewing={isReviewing}
-          downloadReport={downloadReport}
-        />
-
-        <CommandBar 
-          code={code}
-          setCode={setCode}
-          isReviewing={isReviewing}
-          handleReview={handleReview}
-          error={error}
-          focusModes={focusModes}
-          setFocusModes={setFocusModes}
-          isDragging={isDragging}
-          setIsDragging={setIsDragging}
-          onDrop={onDrop}
-          handleFileUpload={handleFileUpload}
-          fileInputRef={fileInputRef}
-          setShowGithubModal={setShowGithubModal}
-        />
-      </main>
+      <Routes>
+        <Route path="/" element={renderContent()} />
+        <Route path="/chat/:sessionId" element={renderContent()} />
+      </Routes>
     </div>
   );
 }

@@ -45,13 +45,35 @@ export const Login = ({ onLogin }: LoginProps) => {
           <div className="flex flex-col items-center justify-center">
             <div className="w-full h-14 flex items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-zinc-900 border border-border shadow-sm hover:border-emerald-500/50 transition-all duration-300">
               <GoogleLogin
-                onSuccess={(credentialResponse) => {
-                  const decoded = jwtDecode<Record<string, unknown>>(credentialResponse.credential!);
-                  onLogin({
-                    name: decoded.name as string,
-                    email: decoded.email as string,
-                    avatar: decoded.picture as string
-                  });
+                onSuccess={async (credentialResponse) => {
+                  if (!credentialResponse.credential) return;
+
+                  try {
+                    // 1. Decrypt Google JWT for UI
+                    const decoded = jwtDecode<Record<string, unknown>>(credentialResponse.credential);
+                    
+                    // 2. Exchange for Firebase Credential
+                    const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
+                    const { auth } = await import('../../config/firebase');
+                    const credential = GoogleAuthProvider.credential(credentialResponse.credential);
+                    const result = await signInWithCredential(auth, credential);
+                    console.log("Firebase Login Success:", result.user);
+
+                    // 3. Trigger app login
+                    onLogin({
+                      name: decoded.name as string,
+                      email: decoded.email as string,
+                      avatar: decoded.picture as string
+                    });
+                  } catch (err: unknown) {
+                    const firebaseError = err as { code?: string; message?: string; customData?: any };
+                    console.error("Firebase Auth Detailed Error:", {
+                      code: firebaseError.code,
+                      message: firebaseError.message,
+                      custom: firebaseError.customData
+                    });
+                    setError(`Sync Error: ${firebaseError.code === 'auth/configuration-not-found' ? 'Google Sign-In is not enabled in Firebase Console.' : firebaseError.message || 'Unknown error'}`);
+                  }
                 }}
                 onError={() => setError("Authentication failed. Please try again.")}
                 useOneTap
