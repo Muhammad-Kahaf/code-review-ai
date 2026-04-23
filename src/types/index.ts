@@ -52,3 +52,40 @@ export interface LegacyReviewItem {
   content: string;
   timestamp: string;
 }
+export interface AgentSettings {
+  repoFullName: string;
+  autoFix: boolean;
+  autoMerge: boolean;
+  mergeScope?: 'all' | number;
+  targetBranch?: string; // e.g. main, develop
+  frequency: number; // minutes
+  isActive: boolean;
+  lastProcessedPR?: number;
+}
+
+export interface EngineeringTask {
+  id: string;
+  repoFullName: string;
+  description: string;
+  baseBranch?: string; // where to start from
+  status: 'planning' | 'waiting_approval' | 'implementing' | 'completed' | 'failed';
+  plan?: {
+    plan: string;
+    filesToModify: string[];
+    filesToCreate: string[];
+    branchName: string;
+  };
+  prUrl?: string;
+  error?: string;
+  verificationLogs?: string[];
+  createdAt: number;
+}
+
+export interface LogEntry {
+  id: string;
+  type: 'agent' | 'bot' | 'system';
+  level: 'info' | 'warn' | 'error' | 'success';
+  message: string;
+  repoFullName: string;
+  createdAt: string | number; // Firestore Timestamp
+}

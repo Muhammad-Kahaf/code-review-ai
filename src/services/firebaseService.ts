@@ -1,16 +1,18 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  query,
   orderBy,
+  where,
+  limit,
   deleteDoc,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { ChatSession, User } from '../types';
+import type { ChatSession, LogEntry, User } from '../types';
 
 /**
  * PRODUCTION-GRADE FIREBASE SERVICE
@@ -33,7 +35,7 @@ export const FirebaseService = {
    */
   saveSession: async (userEmail: string, session: ChatSession) => {
     const sessionRef = doc(db, 'users', userEmail, 'sessions', session.id);
-    
+
     // 1. Save metadata (Exclude messages array from the main document document)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { messages, ...metadata } = session;
@@ -60,7 +62,7 @@ export const FirebaseService = {
     const sessionsRef = collection(db, 'users', userEmail, 'sessions');
     const q = query(sessionsRef, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
-    
+
     return querySnapshot.docs.map((docSnap) => {
       const data = docSnap.data();
       return {
@@ -80,7 +82,7 @@ export const FirebaseService = {
     const messagesRef = collection(db, 'users', userEmail, 'sessions', sessionId, 'messages');
     const q = query(messagesRef, orderBy('createdAt', 'asc'));
     const querySnapshot = await getDocs(q);
-    
+
     return querySnapshot.docs.map(d => d.data() as import('../types').Message);
   },
 
@@ -107,5 +109,75 @@ export const FirebaseService = {
     const tokenRef = doc(db, 'users', userEmail, 'secrets', 'github');
     const docSnap = await getDoc(tokenRef);
     return docSnap.exists() ? docSnap.data().token : null;
+  },
+  /**
+   * Saves or updates agent settings for a repository
+   */
+  saveAgentSettings: async (userEmail: string, repoFullName: string, settings: import('../types').AgentSettings) => {
+    const agentRef = doc(db, 'users', userEmail, 'agents', repoFullName.replace(/\//g, '_'));
+    await setDoc(agentRef, { ...settings, updatedAt: Timestamp.now() }, { merge: true });
+  },
+
+  /**
+   * Fetches all active agents for a user
+   */
+  getAgents: async (userEmail: string): Promise<import('../types').AgentSettings[]> => {
+    const agentsRef = collection(db, 'users', userEmail, 'agents');
+    const snapshot = await getDocs(agentsRef);
+    return snapshot.docs.map(d => d.data() as import('../types').AgentSettings);
+  },
+  /**
+   * Saves or updates an engineering task
+   */
+  saveTask: async (userEmail: string, task: import('../types').EngineeringTask) => {
+    const taskRef = doc(db, 'users', userEmail, 'tasks', task.id);
+    await setDoc(taskRef, { ...task, updatedAt: Timestamp.now() }, { merge: true });
+  },
+
+  /**
+   * Fetches all tasks for a specific repository
+   */
+  getTasks: async (userEmail: string, repoFullName: string): Promise<import('../types').EngineeringTask[]> => {
+    const tasksRef = collection(db, 'users', userEmail, 'tasks');
+    const q = query(tasksRef, where('repoFullName', '==', repoFullName), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => d.data() as import('../types').EngineeringTask);
+  },
+
+  /**
+   * Adds an activity log entry
+   */
+  addLog: async (userEmail: string, repoFullName: string, log: Omit<LogEntry, 'id' | 'createdAt'>) => {
+    const logEntry: LogEntry = {
+      ...log,
+      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      repoFullName,
+      createdAt: Date.now()
+    };
+
+    // Dispatch live event for immediate UI feedback (bypasses Firestore indexing delay)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('agent-log', { detail: logEntry }));
+    }
+
+    try {
+      const logsRef = doc(db, 'logs', logEntry.id);
+      await setDoc(logsRef, {
+        ...logEntry,
+        userEmail
+      });
+    } catch (e) {
+      console.error('Failed to add log:', e);
+    }
+  },
+
+  /**
+   * Fetches recent logs for a repo
+   */
+  getLogs: async (userEmail: string, repoFullName: string): Promise<import('../types').LogEntry[]> => {
+    const logsRef = collection(db, 'users', userEmail, 'logs');
+    const q = query(logsRef, where('repoFullName', '==', repoFullName), orderBy('createdAt', 'desc'), limit(50));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => d.data() as import('../types').LogEntry);
   }
 };

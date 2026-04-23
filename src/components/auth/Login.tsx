@@ -66,7 +66,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                       avatar: decoded.picture as string
                     });
                   } catch (err: unknown) {
-                    const firebaseError = err as { code?: string; message?: string; customData?: any };
+                    const firebaseError = err as { code?: string; message?: string; customData?: unknown };
                     console.error("Firebase Auth Detailed Error:", {
                       code: firebaseError.code,
                       message: firebaseError.message,

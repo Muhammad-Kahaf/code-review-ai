@@ -19,6 +19,7 @@ import 'prismjs/components/prism-diff';
 import { usePersistence } from './hooks/usePersistence';
 import { useTheme } from './hooks/useTheme';
 import { useChat } from './hooks/useChat';
+import { AgentService } from './services/agentService';
 
 // Components
 import { Login } from './components/auth/Login';
@@ -67,14 +68,34 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showGithubModal, setShowGithubModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAgentProcessing, setIsAgentProcessing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeSession = sessions.find(s => s.id === activeId);
 
-  // Syntax highlighting trigger
   useEffect(() => {
     Prism.highlightAll();
   }, [sessions, isReviewing]);
+
+  // Autonomous Agent Polling (Every 5 minutes)
+  useEffect(() => {
+    if (!user || !githubToken || !apiKey) return;
+
+    const runAgent = async () => {
+      setIsAgentProcessing(true);
+      try {
+        await AgentService.processAllAgents(user.email, githubToken, apiKey);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsAgentProcessing(false);
+      }
+    };
+
+    runAgent(); // Initial run
+    const interval = setInterval(runAgent, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user?.email, githubToken, apiKey]);
 
   const handleLogin = (userData: User) => setUser(userData);
 
@@ -143,6 +164,12 @@ export default function App() {
           <h2 className="text-xs font-black text-foreground uppercase tracking-[0.25em] px-2 border-l border-border h-4 flex items-center ml-2">
             {activeSession ? activeSession.title : 'Overview'}
           </h2>
+          {isAgentProcessing && (
+            <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 rounded-full border border-blue-500/20 ml-4 animate-pulse">
+               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+               <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">Brain Active</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -197,9 +224,11 @@ export default function App() {
       <GithubRepoModal
         isOpen={showGithubModal}
         onClose={() => setShowGithubModal(false)}
+        userEmail={user?.email}
         githubToken={githubToken}
         onSelectRepo={handleRepoSelect}
         onSelectPR={handlePRSelect}
+        isAgentProcessing={isAgentProcessing}
       />
 
       <SettingsModal 

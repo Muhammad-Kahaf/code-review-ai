@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { ChatSession, Message, GithubReview, User } from '../types';
 import { analyzeCode, analyzePR } from '../services/groqService';
-import { fetchGithubContent, getOctokit, decodeBase64UTF8 } from '../services/githubService';
+import { GithubService, getOctokit, decodeBase64UTF8 } from '../services/githubService';
 import { FirebaseService } from '../services/firebaseService';
 import { VALID_EXTENSIONS, DEFAULT_FOCUS_MODES } from '../config';
 
@@ -97,7 +97,7 @@ export const useChat = (
 
     if (currentCode.trim().startsWith('https://github.com')) {
       try {
-        currentCode = await fetchGithubContent(currentCode.trim());
+        currentCode = await GithubService.fetchContent(currentCode.trim());
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
         setIsReviewing(false);

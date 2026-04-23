@@ -1,11 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Key, GitForkIcon, Globe, Zap } from 'lucide-react';
+import { GitForkIcon, Globe } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  apiKey: string;
-  setApiKey: (val: string) => void;
   githubToken: string;
   setGithubToken: (val: string) => void;
   lang: string;
@@ -14,8 +12,6 @@ interface SettingsModalProps {
 export const SettingsModal = ({
   isOpen,
   onClose,
-  apiKey,
-  setApiKey,
   githubToken,
   setGithubToken,
   lang
@@ -53,22 +49,6 @@ export const SettingsModal = ({
 
             <div className="space-y-5">
               <div className="space-y-3 group">
-                <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] px-1 opacity-60">Authentication Protocol</label>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-emerald-500 transition-colors">
-                    <Key size={16} strokeWidth={2.5} />
-                  </div>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono text-xs outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-muted/20 shadow-xs"
-                    placeholder="Secure API Gateway Key..."
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3 group">
                 <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] px-1 opacity-60">GitHub Connection</label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-emerald-500 transition-colors">
@@ -94,19 +74,6 @@ export const SettingsModal = ({
                     <p className="text-[10px] text-muted font-bold uppercase tracking-widest opacity-50">{lang} Mode Active</p>
                   </div>
                   <div className="px-2 py-1 bg-surface-hover rounded-md border border-border text-[9px] font-black uppercase text-muted">Ready</div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-surface border border-border rounded-2xl hover:border-emerald-500/20 transition-all shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/5 rounded-lg border border-purple-500/10 text-purple-500">
-                    <Zap size={16} strokeWidth={2.5} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[11px] font-black text-foreground uppercase tracking-wider">Analysis Core</p>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest opacity-50">Llama-3.3-70b-versatile</p>
-                  </div>
-                  <div className="px-2 py-1 bg-emerald-500/10 rounded-md border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-500">Fast</div>
                 </div>
               </div>
             </div>
