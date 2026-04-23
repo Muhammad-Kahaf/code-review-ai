@@ -43,6 +43,7 @@ interface GithubRepoModalProps {
   onSelectRepo: (owner: string, repo: string, defaultBranch: string) => void;
   onSelectPR: (owner: string, repo: string, pullNumber: number) => void;
   isAgentProcessing?: boolean;
+  provider?: 'google' | 'github';
 }
 
 export const GithubRepoModal = ({
@@ -52,7 +53,8 @@ export const GithubRepoModal = ({
   githubToken,
   onSelectRepo,
   onSelectPR,
-  isAgentProcessing
+  isAgentProcessing,
+  provider
 }: GithubRepoModalProps) => {
   const [repos, setRepos] = useState<GithubRepo[]>([]);
   const [prs, setPrs] = useState<GithubPR[]>([]);
@@ -373,10 +375,18 @@ export const GithubRepoModal = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-2 relative scrollbar-hide">
           {!githubToken ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-4">
-              <Key className="w-12 h-12 text-muted/30" />
+              <div className="p-4 bg-muted/10 rounded-full">
+                <Key className="w-10 h-10 text-muted/30" />
+              </div>
               <div>
-                <p className="text-sm font-bold text-foreground">Token Required</p>
-                <p className="text-xs text-muted max-w-xs mx-auto mt-1">Please add your GitHub Personal Access Token in the settings to connect.</p>
+                <p className="text-sm font-bold text-foreground tracking-tight">GitHub Token Required</p>
+                <p className="text-[11px] text-muted max-w-[240px] mx-auto mt-2 leading-relaxed">
+                  {provider === 'github' ? (
+                    <>Please <b>re-login with GitHub</b> to sync your access token automatically, or add a PAT in settings.</>
+                  ) : (
+                    <>Please add your <b>GitHub Personal Access Token</b> in the settings to connect your repositories.</>
+                  )}
+                </p>
               </div>
             </div>
           ) : selectedRepo ? (

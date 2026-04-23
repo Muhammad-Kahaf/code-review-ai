@@ -1,20 +1,28 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { GitForkIcon, Globe } from 'lucide-react';
 
+import type { User } from '../../types';
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  apiKey: string;
+  setApiKey: (val: string) => void;
   githubToken: string;
   setGithubToken: (val: string) => void;
   lang: string;
+  user: User | null;
 }
 
 export const SettingsModal = ({
   isOpen,
   onClose,
+  apiKey,
+  setApiKey,
   githubToken,
   setGithubToken,
-  lang
+  lang,
+  user
 }: SettingsModalProps) => {
   return (
     <AnimatePresence>
@@ -49,20 +57,38 @@ export const SettingsModal = ({
 
             <div className="space-y-5">
               <div className="space-y-3 group">
-                <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] px-1 opacity-60">GitHub Connection</label>
+                <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] px-1 opacity-60">Groq Intelligence Key</label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-emerald-500 transition-colors">
-                    <GitForkIcon size={16} strokeWidth={2.5} />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                   </div>
                   <input
                     type="password"
-                    value={githubToken}
-                    onChange={(e) => setGithubToken(e.target.value)}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono text-xs outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-muted/20 shadow-xs"
-                    placeholder="Personal Access Token (PAT)..."
+                    placeholder="gsk_..."
                   />
                 </div>
               </div>
+
+              {user?.provider !== 'github' && (
+                <div className="space-y-3 group">
+                  <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] px-1 opacity-60">GitHub Connection</label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-emerald-500 transition-colors">
+                      <GitForkIcon size={16} strokeWidth={2.5} />
+                    </div>
+                    <input
+                      type="password"
+                      value={githubToken}
+                      onChange={(e) => setGithubToken(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 bg-surface border border-border rounded-xl text-foreground font-mono text-xs outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-muted/20 shadow-xs"
+                      placeholder="Personal Access Token (PAT)..."
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="p-4 bg-surface border border-border rounded-2xl hover:border-emerald-500/20 transition-all shadow-xs">
                 <div className="flex items-center gap-3">

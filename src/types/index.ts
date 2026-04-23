@@ -16,9 +16,11 @@ export interface ChatSession {
 }
 
 export interface User {
+  uid: string;
   name: string;
   email: string;
   avatar: string;
+  provider: 'google' | 'github';
 }
 
 export interface GithubRepo {

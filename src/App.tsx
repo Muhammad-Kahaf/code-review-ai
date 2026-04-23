@@ -97,7 +97,14 @@ export default function App() {
     return () => clearInterval(interval);
   }, [user?.email, githubToken, apiKey]);
 
-  const handleLogin = (userData: User) => setUser(userData);
+  const handleLogin = (userData: User, token?: string) => {
+    console.log("App handleLogin called with:", { userData, token: token ? "EXISTS" : "MISSING" });
+    setUser(userData);
+    if (token) {
+      console.log("App setting githubToken:", token.substring(0, 5) + "...");
+      setGithubToken(token);
+    }
+  };
 
   const handleLogout = () => {
     googleLogout();
@@ -226,6 +233,7 @@ export default function App() {
         onClose={() => setShowGithubModal(false)}
         userEmail={user?.email}
         githubToken={githubToken}
+        provider={user?.provider}
         onSelectRepo={handleRepoSelect}
         onSelectPR={handlePRSelect}
         isAgentProcessing={isAgentProcessing}
@@ -239,6 +247,7 @@ export default function App() {
         githubToken={githubToken}
         setGithubToken={setGithubToken}
         lang={lang}
+        user={user}
       />
 
       <Sidebar 
