@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { googleLogout } from '@react-oauth/google';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Prism from 'prismjs';
-import { Menu, Sun, Moon, Settings, Cpu, Share2, LogIn } from 'lucide-react';
+import { Menu, Sun, Moon, Settings, Share2, LogIn } from 'lucide-react';
 
 // Styles
 import 'prismjs/themes/prism-tomorrow.css';
@@ -31,8 +31,6 @@ import { Logo } from './components/common/Logo';
 
 // Types
 import type { User } from './types';
-
-import { GROQ_MODEL } from './config';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -171,9 +169,9 @@ export default function App() {
   };
 
   const renderContent = () => (
-    <div className="flex-1 flex flex-col relative overflow-hidden h-full">
+    <div className="flex-1 flex flex-col relative overflow-hidden h-full w-full">
       {/* Header Bar */}
-      <header className="sticky top-0 z-30 min-h-[56px] h-14 sm:h-16 shrink-0 flex items-center justify-between px-3 sm:px-6 md:px-8 border-b border-border bg-surface/95 backdrop-blur-md">
+      <header className="h-14 sm:h-16 shrink-0 flex items-center justify-between px-3 sm:px-6 md:px-8 border-b border-border bg-surface/95 backdrop-blur-md z-30 w-full">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button
             type="button"
@@ -184,10 +182,10 @@ export default function App() {
             <Menu size={18} />
           </button>
 
-          <Logo size={24} className="sm:hidden shrink-0" />
+          <Logo size={26} className="shrink-0" />
           
-          <div className="flex items-center gap-2 min-w-0">
-            <h2 className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[140px] sm:max-w-xs md:max-w-md">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h2 className="text-xs sm:text-sm font-bold text-foreground truncate">
               {activeSession ? activeSession.title : 'New Review'}
             </h2>
             {activeSession && (
@@ -200,12 +198,6 @@ export default function App() {
 
         {/* Right Header Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Active Model Indicator */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-wider">
-            <Cpu size={12} />
-            <span className="truncate max-w-[120px]">{GROQ_MODEL.split('/').pop()}</span>
-          </div>
-
           {activeSession && (
             <button
               type="button"
@@ -222,10 +214,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => setShowLoginModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all text-xs font-bold shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all text-[11px] sm:text-xs font-bold shadow-xs cursor-pointer"
             >
               <LogIn size={13} />
-              <span className="hidden sm:inline">Sign In</span>
+              <span>Sign In</span>
             </button>
           )}
 
@@ -233,7 +225,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setIsDark(!isDark)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-background border border-border hover:border-emerald-500/30 text-muted hover:text-foreground transition-all text-xs font-semibold cursor-pointer"
+            className="flex items-center gap-1.5 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-background border border-border hover:border-emerald-500/30 text-muted hover:text-foreground transition-all text-xs font-semibold cursor-pointer"
             title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
           >
             {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} />}
@@ -326,10 +318,12 @@ export default function App() {
         onOpenLogin={() => setShowLoginModal(true)}
       />
 
-      <Routes>
-        <Route path="/" element={renderContent()} />
-        <Route path="/chat/:sessionId" element={renderContent()} />
-      </Routes>
+      <main className="flex-1 flex flex-col min-w-0 h-full w-full overflow-hidden relative">
+        <Routes>
+          <Route path="/" element={renderContent()} />
+          <Route path="/chat/:sessionId" element={renderContent()} />
+        </Routes>
+      </main>
     </div>
   );
 }

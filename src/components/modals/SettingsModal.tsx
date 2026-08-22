@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { GitForkIcon, Globe, Zap, X, ShieldCheck } from 'lucide-react';
-import { GROQ_MODEL } from '../../config';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -84,14 +83,14 @@ export const SettingsModal = ({
                 <div className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded border border-emerald-500/20 text-[9px] font-bold uppercase">Connected</div>
               </div>
 
-              {/* Analysis Model */}
+              {/* Analysis Engine */}
               <div className="p-3.5 bg-surface border border-border rounded-xl flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500 shrink-0">
+                <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg shrink-0">
                   <Zap size={15} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-foreground uppercase tracking-wide">Active Model</p>
-                  <p className="text-[10px] text-muted font-medium truncate">{GROQ_MODEL}</p>
+                  <p className="text-[11px] font-bold text-foreground uppercase tracking-wide">Analysis Engine</p>
+                  <p className="text-[10px] text-muted font-medium truncate">CodeReview.AI High-Speed Neural Core</p>
                 </div>
                 <div className="px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded border border-purple-500/20 text-[9px] font-bold uppercase">Ready</div>
               </div>

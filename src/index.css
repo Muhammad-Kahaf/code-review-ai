@@ -42,12 +42,18 @@
   --grid-color: rgba(250, 250, 250, 0.03);
 }
 
+html, body, #root {
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   @apply bg-background text-foreground font-sans antialiased selection:bg-emerald-500/25 selection:text-emerald-900 dark:selection:text-emerald-100;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  overflow: hidden;
-  height: 100vh;
-  width: 100vw;
 }
 
 /* Custom Scrollbars */
