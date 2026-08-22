@@ -291,6 +291,7 @@ export default function App() {
         isOpen={showGithubModal}
         onClose={() => setShowGithubModal(false)}
         githubToken={githubToken}
+        setGithubToken={setGithubToken}
         onSelectRepo={handleRepoSelect}
         onSelectPR={handlePRSelect}
       />

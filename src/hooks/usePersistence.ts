@@ -52,7 +52,15 @@ export const usePersistence = () => {
     ])
       .then(([cloudSessions, cloudToken]) => {
         setSessions(cloudSessions || []);
-        if (cloudToken) setGithubToken(cloudToken);
+        if (cloudToken && typeof cloudToken === 'string' && (cloudToken.startsWith('ghp_') || cloudToken.startsWith('github_pat_') || cloudToken.startsWith('gho_'))) {
+          setGithubToken(cloudToken);
+        } else {
+          setGithubToken('');
+          if (cloudToken) {
+            // Permanently clear legacy/invalid token from cloud Firestore
+            FirebaseService.saveGitHubToken(user.email, '').catch(console.warn);
+          }
+        }
       })
       .catch((err) => {
         console.error("Firestore initial fetch error:", err);
