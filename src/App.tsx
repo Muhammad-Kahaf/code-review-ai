@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { googleLogout } from '@react-oauth/google';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Prism from 'prismjs';
-import { Menu, Sun, Moon, Settings, Cpu, Share2 } from 'lucide-react';
+import { Menu, Sun, Moon, Settings, Cpu, Share2, LogIn } from 'lucide-react';
 
 // Styles
 import 'prismjs/themes/prism-tomorrow.css';
@@ -61,9 +61,35 @@ export default function App() {
     handlePRSelect
   } = useChat(user, sessions, setSessions, githubToken);
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return false; // Mobile par refresh par kabhi khula nahi aayega
+    }
+    const saved = localStorage.getItem('review_sidebar_open');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  // Save preference for desktop
+  useEffect(() => {
+    if (window.innerWidth >= 768) {
+      localStorage.setItem('review_sidebar_open', String(sidebarOpen));
+    }
+  }, [sidebarOpen]);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sidebarOpen]);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showGithubModal, setShowGithubModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +214,18 @@ export default function App() {
             </button>
           )}
 
+          {/* Guest Sign In Button */}
+          {!user && (
+            <button
+              type="button"
+              onClick={() => setShowLoginModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all text-xs font-bold shadow-xs cursor-pointer"
+            >
+              <LogIn size={13} />
+              <span className="hidden sm:inline">Sign In</span>
+            </button>
+          )}
+
           {/* Theme Toggle */}
           <button
             type="button"
@@ -244,7 +282,15 @@ export default function App() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background theme-transition">
       <AnimatePresence>
-        {!user && <Login onLogin={handleLogin} />}
+        {showLoginModal && (
+          <Login 
+            onLogin={(userData) => {
+              handleLogin(userData);
+              setShowLoginModal(false);
+            }} 
+            onContinueGuest={() => setShowLoginModal(false)}
+          />
+        )}
       </AnimatePresence>
 
       <GithubRepoModal
@@ -274,6 +320,7 @@ export default function App() {
         deleteSession={deleteSession}
         handleLogout={handleLogout}
         lang={lang}
+        onOpenLogin={() => setShowLoginModal(true)}
       />
 
       <Routes>

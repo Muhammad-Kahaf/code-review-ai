@@ -5,6 +5,7 @@ import {
   MessageSquare, 
   Trash2, 
   LogOut, 
+  LogIn,
   Globe, 
   Search,
   Calendar,
@@ -27,6 +28,7 @@ interface SidebarProps {
   deleteSession: (e: React.MouseEvent, id: string) => void;
   handleLogout: () => void;
   lang: string;
+  onOpenLogin?: () => void;
 }
 
 export const Sidebar = ({
@@ -39,7 +41,8 @@ export const Sidebar = ({
   createNewChat,
   deleteSession,
   handleLogout,
-  lang
+  lang,
+  onOpenLogin
 }: SidebarProps) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -222,9 +225,19 @@ export const Sidebar = ({
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between p-2 rounded-xl bg-background border border-border text-muted text-[10px] font-bold">
-              <span>Guest Session Mode</span>
-              <span className="text-emerald-500">Local Active</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-2 text-muted text-[10px] font-bold">
+                <span>Guest Mode</span>
+                <span className="text-emerald-500 font-semibold">Local Storage</span>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenLogin}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-background hover:bg-surface-hover border border-border text-foreground text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                <LogIn size={13} className="text-emerald-500" />
+                <span>Sign In with Google</span>
+              </button>
             </div>
           )}
 
@@ -325,8 +338,21 @@ export const Sidebar = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="p-2 rounded-xl bg-background border border-border text-center text-xs text-muted">
-                    Guest Mode Active
+                  <div className="space-y-2">
+                    <div className="p-2 rounded-xl bg-background border border-border text-center text-xs font-semibold text-muted">
+                      Guest Mode Active
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsOpen(false);
+                        onOpenLogin && onOpenLogin();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
+                    >
+                      <LogIn size={15} />
+                      <span>Sign In with Google</span>
+                    </button>
                   </div>
                 )}
               </div>
