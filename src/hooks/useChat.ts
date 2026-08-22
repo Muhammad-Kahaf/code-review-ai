@@ -23,7 +23,9 @@ export const useChat = (
   const [error, setError] = useState('');
   const [lang, setLang] = useState('English');
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
+
+  // Synchronous ref to track loaded/new session IDs
+  const loadedIdsRef = useRef<Set<string>>(new Set());
 
   // Keep a ref to sessions to avoid stale state in async callbacks
   const sessionsRef = useRef(sessions);
@@ -35,14 +37,14 @@ export const useChat = (
   useEffect(() => {
     if (!user || !activeId) return;
 
-    // Check if we already have this loaded locally
-    if (loadedIds.has(activeId)) return;
+    // Check if we already have this loaded locally (synchronous ref)
+    if (loadedIdsRef.current.has(activeId)) return;
 
     const existingSession = sessionsRef.current.find(s => s.id === activeId);
 
     // If session already has messages in memory, mark as loaded without refetching
     if (existingSession && existingSession.messages && existingSession.messages.length > 0) {
-      setLoadedIds(prev => new Set(prev).add(activeId));
+      loadedIdsRef.current.add(activeId);
       return;
     }
 
@@ -56,15 +58,15 @@ export const useChat = (
               s.id === activeId ? { ...s, messages } : s
             ));
           }
-          setLoadedIds(prev => new Set(prev).add(activeId));
+          loadedIdsRef.current.add(activeId);
         })
         .catch((err) => {
           console.error("Failed to load session messages:", err);
-          setLoadedIds(prev => new Set(prev).add(activeId));
+          loadedIdsRef.current.add(activeId);
         })
         .finally(() => setIsLoadingMessages(false));
     }
-  }, [activeId, user?.email, loadedIds, setSessions]);
+  }, [activeId, user?.email, setSessions]);
 
   // Detect user interface language
   useEffect(() => {
@@ -89,7 +91,7 @@ export const useChat = (
     };
 
     // Immediately mark as loaded so lazy fetch won't overwrite with empty
-    setLoadedIds(prev => new Set(prev).add(newId));
+    loadedIdsRef.current.add(newId);
     setSessions(prev => user ? [newSession, ...prev] : [newSession]);
     navigate(`/chat/${newId}`);
   }, [user, navigate, setSessions]);
@@ -98,12 +100,8 @@ export const useChat = (
     e.preventDefault();
     e.stopPropagation();
 
+    loadedIdsRef.current.delete(id);
     setSessions(prev => prev.filter(s => s.id !== id));
-    setLoadedIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
 
     if (user?.email) {
       try {
@@ -147,6 +145,7 @@ export const useChat = (
 
     let targetId = activeId;
     const isNewSession = !targetId;
+    let createdSession: ChatSession | null = null;
 
     if (isNewSession) {
       const newId = crypto.randomUUID();
@@ -156,7 +155,7 @@ export const useChat = (
       const firstLine = processedCode.split('\n')[0].replace(/[//*#-]/g, '').trim();
       const sessionTitle = (firstLine.length > 3 ? firstLine.slice(0, 32) : 'Code Analysis') + (firstLine.length > 32 ? '...' : '');
 
-      const newSession: ChatSession = {
+      createdSession = {
         id: newId,
         title: sessionTitle,
         messages: [userMessage],
@@ -165,8 +164,8 @@ export const useChat = (
       };
 
       // Mark ID as loaded immediately to prevent cloud race condition
-      setLoadedIds(prev => new Set(prev).add(newId));
-      setSessions(prev => user ? [newSession, ...prev] : [newSession]);
+      loadedIdsRef.current.add(newId);
+      setSessions(prev => user ? [createdSession!, ...prev] : [createdSession!]);
       navigate(`/chat/${newId}`);
     } else {
       setSessions(prev => prev.map(s =>
@@ -177,7 +176,7 @@ export const useChat = (
     setCode('');
 
     try {
-      const result = await analyzeCode(currentCode, apiKey, focusModes, lang);
+      const result = await analyzeCode(processedCode, apiKey, focusModes, lang);
       const aiMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -186,19 +185,25 @@ export const useChat = (
         createdAt: Date.now()
       };
 
-      setSessions(prev => prev.map(s => {
-        if (s.id === targetId) {
-          return { ...s, messages: [...s.messages, aiMessage] };
-        }
-        return s;
-      }));
+      setSessions(prev => {
+        return prev.map(s => {
+          if (s.id === targetId) {
+            const updated = { ...s, messages: [...s.messages, aiMessage] };
+            if (user?.email) {
+              FirebaseService.saveSession(user.email, updated).catch(console.warn);
+            }
+            return updated;
+          }
+          return s;
+        });
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to connect to AI Review Service.';
       setError(msg);
     } finally {
       setIsReviewing(false);
     }
-  }, [code, lang, apiKey, focusModes, activeId, setSessions, navigate]);
+  }, [code, isReviewing, activeId, focusModes, user, navigate, setSessions, apiKey, lang]);
 
   const handleRepoSelect = async (owner: string, repo: string, defaultBranch: string) => {
     setIsReviewing(true);
@@ -248,63 +253,72 @@ export const useChat = (
       const { data: files } = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: pullNumber, per_page: 100 });
       if (files.length === 0) throw new Error('No files changed in this PR.');
 
-      let combinedStr = `// --- PR Review: ${owner}/${repo} #${pullNumber} ---\n\n`;
-      files.forEach(file => {
-        combinedStr += `// --- File: ${file.filename} ---\n// Status: ${file.status}, Additions: ${file.additions}, Deletions: ${file.deletions}\n`;
-        combinedStr += file.patch ? `/* DIFF PATCH:\n${file.patch}\n*/\n\n` : `// (No diff patch available)\n\n`;
+      const codeSnippets: string[] = [];
+      files.forEach((file: any) => {
+        if (file.patch) {
+          codeSnippets.push(`--- File: ${file.filename} ---\n${file.patch}`);
+        }
       });
+
+      const fullPatch = codeSnippets.join('\n\n');
+      if (!fullPatch) throw new Error('No readable diffs or patches found in PR.');
 
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: 'user',
-        content: `Analyze GitHub PR #${pullNumber} (${owner}/${repo})`,
-        code: combinedStr,
+        content: `Audit Pull Request #${pullNumber} (${owner}/${repo})`,
+        code: fullPatch.length > 2000 ? `${fullPatch.substring(0, 2000)}\n\n// ... (truncated)` : fullPatch,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: Date.now()
       };
 
       if (!targetId) {
         const newId = crypto.randomUUID();
+        targetId = newId;
         const newSession: ChatSession = {
           id: newId,
-          title: `PR #${pullNumber}: ${repo}`,
+          title: `PR #${pullNumber}: ${owner}/${repo}`,
           messages: [userMessage],
-          focusModes: DEFAULT_FOCUS_MODES,
+          focusModes: focusModes.length > 0 ? focusModes : DEFAULT_FOCUS_MODES,
           createdAt: Date.now()
         };
 
-        setLoadedIds(prev => new Set(prev).add(newId));
-        setSessions(prev => [newSession, ...prev]);
+        loadedIdsRef.current.add(newId);
+        setSessions(prev => user ? [newSession, ...prev] : [newSession]);
         navigate(`/chat/${newId}`);
-        targetId = newId;
       } else {
-        setSessions(prev => prev.map(s => s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s));
+        setSessions(prev => prev.map(s =>
+          s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s
+        ));
       }
 
-      const parsed = await analyzePR(combinedStr, apiKey);
-      const reviews = (parsed.reviews || []) as GithubReview[];
-      let finalAiMessage = reviews.length > 0
-        ? `### 🔍 Pull Request Analysis Summary\n\n` + reviews.map((r: GithubReview) => `#### File: \`${r.path}\` (Line ~${r.line})\n${r.body}`).join('\n\n---\n\n')
-        : `✅ **PR #${pullNumber} looks solid!** No high-severity issues or vulnerabilities detected.`;
-
-      try {
-        await octokit.rest.pulls.createReview({ owner, repo, pull_number: pullNumber, event: 'COMMENT', body: `### CodeReview.AI Automated Analysis 🤖\n\n${reviews.length > 0 ? finalAiMessage : 'LGTM! All checks passed.'}` });
-        finalAiMessage += `\n\n> 🚀 **Status:** Successfully posted automated comments directly to GitHub PR #${pullNumber}.`;
-      } catch (githubErr: unknown) {
-        finalAiMessage += `\n\n> ⚠️ **GitHub API Note:** Unable to post directly to PR: ${githubErr instanceof Error ? githubErr.message : 'Check GitHub PAT permissions.'}`;
-      }
+      const reviewData = await analyzePR(fullPatch, apiKey);
+      const reviewList: GithubReview[] = reviewData.reviews || [];
+      const summaryText = reviewList.length > 0
+        ? `### Pull Request Audit: #${pullNumber}\nFound **${reviewList.length}** issues / recommendations across changed files:\n\n` +
+          reviewList.map((r, i) => `#### ${i + 1}. \`${r.path}\` (Line ${r.line})\n${r.body}`).join('\n\n')
+        : `### Pull Request Audit: #${pullNumber}\n✅ **No critical issues found.** The changes in this pull request adhere to standard practices.`;
 
       const aiMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: finalAiMessage,
+        content: summaryText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: Date.now()
       };
 
-      setSessions(prev => prev.map(s => s.id === targetId ? { ...s, messages: [...s.messages, aiMessage] } : s));
+      setSessions(prev => prev.map(s => {
+        if (s.id === targetId) {
+          const updated = { ...s, messages: [...s.messages, aiMessage] };
+          if (user?.email) {
+            FirebaseService.saveSession(user.email, updated).catch(console.warn);
+          }
+          return updated;
+        }
+        return s;
+      }));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze GitHub PR.');
+      setError(err instanceof Error ? err.message : 'Failed to analyze PR.');
     } finally {
       setIsReviewing(false);
     }
@@ -312,7 +326,7 @@ export const useChat = (
 
   return {
     code, setCode,
-    isReviewing, setIsReviewing,
+    isReviewing,
     isLoadingMessages,
     focusModes, setFocusModes,
     error, setError,
