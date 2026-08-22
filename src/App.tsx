@@ -27,6 +27,7 @@ import { ChatArea } from './components/chat/ChatArea';
 import { CommandBar } from './components/chat/CommandBar';
 import { GithubRepoModal } from './components/modals/GithubRepoModal';
 import { SettingsModal } from './components/modals/SettingsModal';
+import { Logo } from './components/common/Logo';
 
 // Types
 import type { User } from './types';
@@ -172,19 +173,21 @@ export default function App() {
   const renderContent = () => (
     <div className="flex-1 flex flex-col relative overflow-hidden h-full">
       {/* Header Bar */}
-      <header className="h-14 sm:h-16 shrink-0 flex items-center justify-between px-3 sm:px-6 md:px-8 border-b border-border bg-surface/80 backdrop-blur-md z-20">
+      <header className="sticky top-0 z-30 min-h-[56px] h-14 sm:h-16 shrink-0 flex items-center justify-between px-3 sm:px-6 md:px-8 border-b border-border bg-surface/95 backdrop-blur-md">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-xl hover:bg-surface-hover text-muted hover:text-foreground transition-all duration-200 cursor-pointer"
+            className="p-2 rounded-xl hover:bg-surface-hover text-muted hover:text-foreground transition-all duration-200 cursor-pointer shrink-0"
             aria-label="Toggle Navigation Sidebar"
           >
             <Menu size={18} />
           </button>
+
+          <Logo size={24} className="sm:hidden shrink-0" />
           
           <div className="flex items-center gap-2 min-w-0">
-            <h2 className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[160px] sm:max-w-xs md:max-w-md">
+            <h2 className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[140px] sm:max-w-xs md:max-w-md">
               {activeSession ? activeSession.title : 'New Review'}
             </h2>
             {activeSession && (
@@ -280,7 +283,7 @@ export default function App() {
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background theme-transition">
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-background theme-transition">
       <AnimatePresence>
         {showLoginModal && (
           <Login 
