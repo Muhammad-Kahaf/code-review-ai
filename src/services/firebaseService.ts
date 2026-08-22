@@ -13,8 +13,28 @@ import { db } from '../config/firebase';
 import type { ChatSession, User } from '../types';
 
 /**
+ * Removes any undefined properties since Firestore strictly rejects undefined.
+ */
+const sanitizeForFirestore = (obj: any): any => {
+  if (!obj || typeof obj !== 'object') return obj;
+  const clean: any = Array.isArray(obj) ? [] : {};
+  
+  for (const key of Object.keys(obj)) {
+    const value = obj[key];
+    if (value !== undefined) {
+      if (value !== null && typeof value === 'object' && !(value instanceof Timestamp)) {
+        clean[key] = sanitizeForFirestore(value);
+      } else {
+        clean[key] = value;
+      }
+    }
+  }
+  return clean;
+};
+
+/**
  * PRODUCTION-GRADE FIREBASE SERVICE
- * Handles database operations with graceful offline/local fallback.
+ * Handles real-time cloud sync with sanitized data.
  */
 export const FirebaseService = {
   /**
@@ -24,10 +44,12 @@ export const FirebaseService = {
     if (!db) return;
     try {
       const userRef = doc(db, 'users', user.email);
-      await setDoc(userRef, {
-        ...user,
+      await setDoc(userRef, sanitizeForFirestore({
+        name: user.name || 'User',
+        email: user.email,
+        avatar: user.avatar || '',
         lastLogin: Timestamp.now()
-      }, { merge: true });
+      }), { merge: true });
     } catch (err) {
       console.warn("Firestore upsertUser skipped:", err);
     }
@@ -41,25 +63,36 @@ export const FirebaseService = {
     try {
       const sessionRef = doc(db, 'users', userEmail, 'sessions', session.id);
       
-      // 1. Save metadata
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { messages, ...metadata } = session;
-      await setDoc(sessionRef, {
-        ...metadata,
+      // 1. Save sanitized metadata
+      const metadata = sanitizeForFirestore({
+        id: session.id,
+        title: session.title || 'Code Review',
+        focusModes: session.focusModes || [],
+        createdAt: session.createdAt || Date.now(),
         updatedAt: Timestamp.now()
-      }, { merge: true });
+      });
+      await setDoc(sessionRef, metadata, { merge: true });
 
-      // 2. Save messages to sub-collection
+      // 2. Save sanitized messages to sub-collection
       if (session.messages && session.messages.length > 0) {
         const messagesRef = collection(db, 'users', userEmail, 'sessions', session.id, 'messages');
         const promises = session.messages.map((msg, index) => {
-          const msgId = msg.id || `msg_${index}_${msg.timestamp.replace(/[: ]/g, '_')}`;
-          return setDoc(doc(messagesRef, msgId), msg, { merge: true });
+          const msgId = msg.id || `msg_${index}_${Date.now()}`;
+          const cleanMsg = sanitizeForFirestore({
+            id: msgId,
+            role: msg.role,
+            content: msg.content || '',
+            ...(msg.code ? { code: msg.code } : {}),
+            timestamp: msg.timestamp || new Date().toLocaleTimeString(),
+            createdAt: msg.createdAt || Date.now()
+          });
+          return setDoc(doc(messagesRef, msgId), cleanMsg, { merge: true });
         });
         await Promise.all(promises);
       }
+      console.log(`[Firestore] Session ${session.id} synced to cloud.`);
     } catch (err) {
-      console.warn("Firestore saveSession skipped:", err);
+      console.error("[Firestore] saveSession error:", err);
     }
   },
 
@@ -77,10 +110,10 @@ export const FirebaseService = {
         const data = docSnap.data();
         return {
           id: data.id as string,
-          title: data.title as string,
+          title: (data.title as string) || 'Code Review',
           messages: [],
           focusModes: (data.focusModes as string[]) || [],
-          createdAt: data.createdAt as number
+          createdAt: Number(data.createdAt) || Date.now()
         } as ChatSession;
       });
     } catch (err) {
@@ -99,7 +132,17 @@ export const FirebaseService = {
       const q = query(messagesRef, orderBy('createdAt', 'asc'));
       const querySnapshot = await getDocs(q);
       
-      return querySnapshot.docs.map(d => d.data() as import('../types').Message);
+      return querySnapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          id: data.id,
+          role: data.role,
+          content: data.content,
+          code: data.code,
+          timestamp: data.timestamp,
+          createdAt: data.createdAt
+        } as import('../types').Message;
+      });
     } catch (err) {
       console.warn("Firestore getSessionMessages skipped:", err);
       return [];

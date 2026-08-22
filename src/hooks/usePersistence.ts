@@ -117,6 +117,14 @@ export const usePersistence = () => {
 
       if (cloudToken) setGithubToken(cloudToken);
       setLastSyncedEmail(user.email);
+
+      // Auto-upload any local sessions with messages to Firestore for cross-device sync
+      const cached = loadInitialSessions(getEmailKey(user));
+      cached.forEach(localS => {
+        if (localS.messages && localS.messages.length > 0) {
+          FirebaseService.saveSession(user.email, localS).catch(console.warn);
+        }
+      });
     })
     .catch((err) => {
       console.error("Firebase sync error:", err);
