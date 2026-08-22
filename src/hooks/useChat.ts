@@ -90,9 +90,9 @@ export const useChat = (
 
     // Immediately mark as loaded so lazy fetch won't overwrite with empty
     setLoadedIds(prev => new Set(prev).add(newId));
-    setSessions(prev => [newSession, ...prev]);
+    setSessions(prev => user ? [newSession, ...prev] : [newSession]);
     navigate(`/chat/${newId}`);
-  }, [navigate, setSessions]);
+  }, [user, navigate, setSessions]);
 
   const deleteSession = useCallback(async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -119,16 +119,16 @@ export const useChat = (
   }, [user, activeId, navigate, setSessions]);
 
   const handleReview = useCallback(async () => {
-    const trimmedCode = code.trim();
-    if (!trimmedCode) return;
+    const currentCode = code.trim();
+    if (!currentCode || isReviewing) return;
 
     setIsReviewing(true);
     setError('');
 
-    let currentCode = trimmedCode;
-    if (currentCode.startsWith('https://github.com')) {
+    let processedCode = currentCode;
+    if (processedCode.startsWith('https://github.com')) {
       try {
-        currentCode = await fetchGithubContent(currentCode);
+        processedCode = await fetchGithubContent(processedCode);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch GitHub repository URL');
         setIsReviewing(false);
@@ -140,7 +140,7 @@ export const useChat = (
       id: crypto.randomUUID(),
       role: 'user',
       content: 'Analyze and review this code',
-      code: currentCode,
+      code: processedCode,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: Date.now()
     };
@@ -153,7 +153,7 @@ export const useChat = (
       targetId = newId;
 
       // Extract a clean title from the code
-      const firstLine = currentCode.split('\n')[0].replace(/[//*#-]/g, '').trim();
+      const firstLine = processedCode.split('\n')[0].replace(/[//*#-]/g, '').trim();
       const sessionTitle = (firstLine.length > 3 ? firstLine.slice(0, 32) : 'Code Analysis') + (firstLine.length > 32 ? '...' : '');
 
       const newSession: ChatSession = {
@@ -166,7 +166,7 @@ export const useChat = (
 
       // Mark ID as loaded immediately to prevent cloud race condition
       setLoadedIds(prev => new Set(prev).add(newId));
-      setSessions(prev => [newSession, ...prev]);
+      setSessions(prev => user ? [newSession, ...prev] : [newSession]);
       navigate(`/chat/${newId}`);
     } else {
       setSessions(prev => prev.map(s =>

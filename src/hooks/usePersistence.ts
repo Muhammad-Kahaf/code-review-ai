@@ -3,24 +3,17 @@ import type { User, ChatSession } from '../types';
 import { EncryptionService } from '../services/encryptionService';
 import { FirebaseService } from '../services/firebaseService';
 
-const getEmailKey = (user: User | null) => user ? user.email.replace(/[.@]/g, '_') : 'guest_user';
+const getEmailKey = (user: User | null) => user ? user.email.replace(/[.@]/g, '_') : '';
 
 const loadInitialSessions = (emailKey: string): ChatSession[] => {
+  if (!emailKey) return []; // Guests have no persistent sessions
+
   try {
-    // Try loading from encrypted local cache first
     const hashedKey = EncryptionService.hashKey(`review_sessions_v2_${emailKey}`);
     const encryptedSaved = localStorage.getItem(hashedKey);
     if (encryptedSaved) {
       const decrypted = EncryptionService.decryptObject<ChatSession[]>(encryptedSaved, emailKey);
       if (Array.isArray(decrypted)) return decrypted;
-    }
-
-    // Fallback to v1 (legacy migration)
-    const hashedKeyV1 = EncryptionService.hashKey(`review_sessions_${emailKey}`);
-    const v1 = localStorage.getItem(hashedKeyV1);
-    if (v1) {
-      const decrypted = EncryptionService.decryptObject<ChatSession[]>(v1, emailKey);
-      if (Array.isArray(decrypted)) return decrypted.map(s => ({ ...s, messages: s.messages || [] }));
     }
   } catch (err) {
     console.warn('Failed to load local sessions:', err);
@@ -50,6 +43,7 @@ export const usePersistence = () => {
   const isLoadingSessions = !!user && user.email !== lastSyncedEmail;
 
   const [githubToken, setGithubToken] = useState(() => {
+    if (!emailKey) return '';
     try {
       const hashedKey = EncryptionService.hashKey(`review_github_token_${emailKey}`);
       const encrypted = localStorage.getItem(hashedKey);
@@ -64,7 +58,10 @@ export const usePersistence = () => {
   });
 
   const setUser = (newUser: User | null) => {
-    if (!newUser) setLastSyncedEmail(null);
+    if (!newUser) {
+      setLastSyncedEmail(null);
+      setSessions([]); // Clear sessions on logout / guest
+    }
     setUserInternal(newUser);
   };
 
@@ -77,17 +74,21 @@ export const usePersistence = () => {
       const cachedSessions = loadInitialSessions(newEmailKey);
       setSessions(cachedSessions);
       
-      try {
-        const hashedTokenKey = EncryptionService.hashKey(`review_github_token_${newEmailKey}`);
-        const encryptedToken = localStorage.getItem(hashedTokenKey);
-        setGithubToken(encryptedToken ? EncryptionService.decrypt(encryptedToken, newEmailKey) : '');
-      } catch {
+      if (newEmailKey) {
+        try {
+          const hashedTokenKey = EncryptionService.hashKey(`review_github_token_${newEmailKey}`);
+          const encryptedToken = localStorage.getItem(hashedTokenKey);
+          setGithubToken(encryptedToken ? EncryptionService.decrypt(encryptedToken, newEmailKey) : '');
+        } catch {
+          setGithubToken('');
+        }
+      } else {
         setGithubToken('');
       }
     }
   }, [user]);
 
-  // Cloud Sync Effect
+  // Cloud Sync Effect for Logged-In Users
   useEffect(() => {
     if (!user || user.email === lastSyncedEmail) return;
 
@@ -137,8 +138,10 @@ export const usePersistence = () => {
     }
   }, [user]);
 
-  // Local Storage persistence for sessions & tokens
+  // Local Storage & Cloud persistence ONLY FOR LOGGED-IN USERS
   useEffect(() => {
+    if (!user) return; // Do NOT persist guest session in localStorage!
+
     try {
       const key = getEmailKey(user);
       const hashedTokenKey = EncryptionService.hashKey(`review_github_token_${key}`);
@@ -146,29 +149,23 @@ export const usePersistence = () => {
 
       if (githubToken) {
         localStorage.setItem(hashedTokenKey, EncryptionService.encrypt(githubToken, key));
-      }
-      localStorage.setItem(hashedSessionsKey, EncryptionService.encryptObject(sessions, key));
-
-      if (user && githubToken) {
         FirebaseService.saveGitHubToken(user.email, githubToken).catch(console.error);
       }
+      
+      localStorage.setItem(hashedSessionsKey, EncryptionService.encryptObject(sessions, key));
+
+      // Sync active session messages to Firestore
+      sessions.forEach(session => {
+        if (session.messages && session.messages.length > 0) {
+          FirebaseService.saveSession(user.email, session).catch(err => {
+            console.warn("Auto-sync session to Firebase failed:", err);
+          });
+        }
+      });
     } catch (err) {
-      console.warn("Failed to persist sessions locally:", err);
+      console.warn("Failed to persist sessions for logged-in user:", err);
     }
   }, [user, githubToken, sessions]);
-
-  // Cloud Sync: whenever sessions update, sync sessions that have messages to Firestore
-  useEffect(() => {
-    if (!user || sessions.length === 0) return;
-
-    sessions.forEach(session => {
-      if (session.messages && session.messages.length > 0) {
-        FirebaseService.saveSession(user.email, session).catch(err => {
-          console.warn("Auto-sync session to Firebase failed:", err);
-        });
-      }
-    });
-  }, [sessions, user]);
 
   return {
     user, setUser,

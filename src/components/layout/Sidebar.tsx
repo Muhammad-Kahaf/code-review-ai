@@ -81,6 +81,34 @@ export const Sidebar = ({
   }, [filteredSessions]);
 
   const renderSessionList = (isMobile = false) => {
+    if (!user) {
+      return (
+        <div className="space-y-4 px-1 py-4">
+          <div className="p-4 rounded-2xl bg-surface-hover/70 border border-border text-center space-y-2.5">
+            <div className="w-8 h-8 mx-auto rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+              <Sparkles size={16} />
+            </div>
+            <p className="text-xs font-bold text-foreground">Temporary Guest Session</p>
+            <p className="text-[11px] text-muted leading-relaxed">
+              Chat session resets on page refresh. Sign in with Google to save review history and sync across devices.
+            </p>
+            {onOpenLogin && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isMobile) setIsOpen(false);
+                  onOpenLogin();
+                }}
+                className="w-full mt-2 py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                Sign In with Google
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     if (isLoading) {
       return (
         <div className="space-y-2.5 px-1">
