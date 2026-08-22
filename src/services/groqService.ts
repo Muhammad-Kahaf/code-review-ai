@@ -82,9 +82,9 @@ ${combinedDiff}`;
   const content: string = response.data.choices[0].message.content;
   try {
     return JSON.parse(content);
-  } catch (e) {
+  } catch (e: any) {
     const match = content.match(/\{[\s\S]*\}/);
     if (match) return JSON.parse(match[0]);
-    throw new Error(e || 'Failed to parse AI response as JSON');
+    throw new Error(e?.message || 'Failed to parse AI response as JSON');
   }
 };

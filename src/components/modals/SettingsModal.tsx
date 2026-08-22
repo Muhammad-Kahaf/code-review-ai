@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Key, GitForkIcon, Globe, Zap } from 'lucide-react';
+import { GROQ_MODEL } from '../../config';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -104,7 +105,7 @@ export const SettingsModal = ({
                   </div>
                   <div className="flex-1">
                     <p className="text-[11px] font-black text-foreground uppercase tracking-wider">Analysis Core</p>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest opacity-50">Llama-3.3-70b-versatile</p>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest opacity-50">{GROQ_MODEL}</p>
                   </div>
                   <div className="px-2 py-1 bg-emerald-500/10 rounded-md border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-500">Fast</div>
                 </div>
