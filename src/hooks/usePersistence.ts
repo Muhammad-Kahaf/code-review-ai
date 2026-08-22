@@ -29,7 +29,7 @@ const loadInitialSessions = (emailKey: string): ChatSession[] => {
   return [];
 };
 
-export const usePersistence = (activeId: string | null | undefined) => {
+export const usePersistence = () => {
   const [user, setUserInternal] = useState<User | null>(() => {
     try {
       const hashedKey = EncryptionService.hashKey('review_user');
@@ -157,15 +157,18 @@ export const usePersistence = (activeId: string | null | undefined) => {
     }
   }, [user, githubToken, sessions]);
 
-  // Specific Cloud Sync for active session with messages
+  // Cloud Sync: whenever sessions update, sync sessions that have messages to Firestore
   useEffect(() => {
-    if (!user || sessions.length === 0 || !activeId) return;
-    
-    const current = sessions.find(s => s.id === activeId);
-    if (current && current.messages && current.messages.length > 0) {
-      FirebaseService.saveSession(user.email, current).catch(console.error);
-    }
-  }, [sessions, activeId, user]);
+    if (!user || sessions.length === 0) return;
+
+    sessions.forEach(session => {
+      if (session.messages && session.messages.length > 0) {
+        FirebaseService.saveSession(user.email, session).catch(err => {
+          console.warn("Auto-sync session to Firebase failed:", err);
+        });
+      }
+    });
+  }, [sessions, user]);
 
   return {
     user, setUser,

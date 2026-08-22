@@ -26,14 +26,17 @@ export const Login = ({ onLogin, onContinueGuest, canClose = true }: LoginProps)
         
         const profile = userInfo.data;
 
-        // Try syncing to Firebase if configured
+        // Sign in to Firebase Auth using Google OAuth Access Token
         try {
           const { auth } = await import('../../config/firebase');
           if (auth) {
-            console.log("Authenticated Google profile:", profile.email);
+            const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
+            const credential = GoogleAuthProvider.credential(null, tokenResponse.access_token);
+            await signInWithCredential(auth, credential);
+            console.log("Firebase Auth signed in successfully:", profile.email);
           }
         } catch (fbErr) {
-          console.warn("Firebase Auth sync skipped:", fbErr);
+          console.warn("Firebase Auth signInWithCredential warning:", fbErr);
         }
 
         onLogin({

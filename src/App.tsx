@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { googleLogout } from '@react-oauth/google';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Prism from 'prismjs';
 import { Menu, Sun, Moon, Settings, Share2, LogIn } from 'lucide-react';
 
@@ -33,15 +33,12 @@ import { Logo } from './components/common/Logo';
 import type { User } from './types';
 
 export default function App() {
-  const { pathname } = useLocation();
-  const sessionId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : undefined;
-
   const {
     user, setUser,
     githubToken, setGithubToken,
     sessions, setSessions,
     isLoadingSessions
-  } = usePersistence(sessionId);
+  } = usePersistence();
 
   const { isDark, setIsDark } = useTheme();
 
