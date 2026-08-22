@@ -5,12 +5,10 @@ import {
   MessageSquare, 
   Trash2, 
   LogOut, 
-  LogIn,
-  Globe, 
+  LogIn, 
   Search,
   Calendar,
-  X,
-  Sparkles
+  X
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { User, ChatSession } from '../../types';
@@ -27,7 +25,6 @@ interface SidebarProps {
   createNewChat: () => void;
   deleteSession: (e: React.MouseEvent, id: string) => void;
   handleLogout: () => void;
-  lang: string;
   onOpenLogin?: () => void;
 }
 
@@ -41,11 +38,11 @@ export const Sidebar = ({
   createNewChat,
   deleteSession,
   handleLogout,
-  lang,
   onOpenLogin
 }: SidebarProps) => {
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filter sessions by search query
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
     const q = searchQuery.toLowerCase();
@@ -81,39 +78,37 @@ export const Sidebar = ({
   }, [filteredSessions]);
 
   const renderSessionList = (isMobile = false) => {
+    // When NOT logged in: show clean humanized prompt like ChatGPT / Claude
     if (!user) {
       return (
-        <div className="space-y-4 px-1 py-4">
-          <div className="p-4 rounded-2xl bg-surface-hover/70 border border-border text-center space-y-2.5">
-            <div className="w-8 h-8 mx-auto rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-              <Sparkles size={16} />
-            </div>
-            <p className="text-xs font-bold text-foreground">Temporary Guest Session</p>
+        <div className="space-y-4 px-3 py-6 text-center my-auto">
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-foreground">Sign in to save chats</p>
             <p className="text-[11px] text-muted leading-relaxed">
-              Chat session resets on page refresh. Sign in with Google to save review history and sync across devices.
+              Save your review history and sync across devices by signing in.
             </p>
-            {onOpenLogin && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (isMobile) setIsOpen(false);
-                  onOpenLogin();
-                }}
-                className="w-full mt-2 py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
-              >
-                Sign In with Google
-              </button>
-            )}
           </div>
+          {onOpenLogin && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isMobile) setIsOpen(false);
+                onOpenLogin();
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              Sign in with Google
+            </button>
+          )}
         </div>
       );
     }
 
     if (isLoading) {
       return (
-        <div className="space-y-2.5 px-1">
+        <div className="space-y-2 px-1 py-2">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-10 w-full bg-surface-hover animate-pulse rounded-xl" />
+            <div key={i} className="h-9 w-full bg-surface-hover animate-pulse rounded-xl" />
           ))}
         </div>
       );
@@ -121,45 +116,45 @@ export const Sidebar = ({
 
     if (filteredSessions.length === 0) {
       return (
-        <div className="px-3 py-8 text-center border border-dashed border-border rounded-xl bg-background/50">
-          <p className="text-[11px] text-muted font-semibold">
-            {searchQuery ? 'No matching reviews found' : 'No review history yet'}
+        <div className="px-3 py-8 text-center border border-dashed border-border rounded-xl bg-background/40 my-4">
+          <p className="text-xs text-muted font-medium">
+            {searchQuery ? 'No matching reviews' : 'No review history yet'}
           </p>
         </div>
       );
     }
 
     return (
-      <div className="space-y-5">
+      <div className="space-y-4 py-2">
         {Object.entries(groupedSessions).map(([groupName, groupItems]) => {
           if (groupItems.length === 0) return null;
           return (
-            <div key={groupName} className="space-y-1.5">
-              <p className="px-2 text-[10px] font-black text-muted/60 uppercase tracking-[0.2em] flex items-center gap-1.5">
+            <div key={groupName} className="space-y-1">
+              <p className="px-2 text-[10px] font-mono font-bold text-muted/60 uppercase tracking-wider flex items-center gap-1.5">
                 <Calendar size={11} />
                 {groupName}
               </p>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {groupItems.map(s => (
                   <NavLink
                     key={s.id}
                     to={`/chat/${s.id}`}
                     onClick={() => isMobile && setIsOpen(false)}
-                    className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer group transition-all duration-150 border text-left ${
+                    className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer group transition-all duration-150 border text-left ${
                       isActive
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-semibold'
+                        ? 'bg-zinc-100 dark:bg-zinc-800/80 border-border text-foreground font-semibold'
                         : 'border-transparent text-muted hover:bg-surface-hover hover:text-foreground'
                     }`}
                   >
-                    <MessageSquare size={14} className={`shrink-0 ${activeId === s.id ? 'text-emerald-500' : 'text-muted/60 group-hover:text-emerald-500/70'}`} />
-                    <span className="text-xs truncate flex-1 font-medium tracking-tight">{s.title}</span>
+                    <MessageSquare size={14} className={`shrink-0 ${activeId === s.id ? 'text-emerald-500' : 'text-muted/60 group-hover:text-foreground'}`} />
+                    <span className="text-xs truncate flex-1 font-medium">{s.title}</span>
                     <button
                       type="button"
                       onClick={(e) => deleteSession(e, s.id)}
                       className={`p-1 rounded-md transition-all shrink-0 ${
                         activeId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                      } hover:text-red-500 hover:bg-red-500/10`}
-                      title="Delete review session"
+                      } hover:text-red-500 hover:bg-red-500/10 cursor-pointer`}
+                      title="Delete review"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -178,67 +173,68 @@ export const Sidebar = ({
       {/* Desktop Sidebar */}
       <motion.aside
         initial={false}
-        animate={{ width: isOpen ? 280 : 0 }}
+        animate={{ width: isOpen ? 260 : 0 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         className="hidden md:flex flex-col bg-surface border-r border-border text-foreground overflow-hidden z-30 shadow-xl relative select-none"
       >
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-5 h-16 border-b border-border bg-surface/80 backdrop-blur-md shrink-0">
-          <Logo size={32} />
+        <div className="flex items-center gap-2.5 px-4 h-14 border-b border-border bg-surface/90 backdrop-blur-md shrink-0">
+          <Logo size={26} />
           <div className="min-w-0 flex-1">
-            <h1 className="text-sm font-black text-foreground tracking-tight font-display flex items-center gap-1">
+            <h1 className="text-sm font-black text-foreground tracking-tight font-display">
               CodeReview<span className="text-emerald-500">.AI</span>
-              <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 ml-auto">PRO</span>
             </h1>
           </div>
         </div>
 
-        {/* Action & Search */}
-        <div className="p-3 space-y-3 shrink-0">
-          <button
-            type="button"
-            onClick={createNewChat}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-md shadow-emerald-500/20 group cursor-pointer"
-          >
-            <span className="text-xs uppercase tracking-wider font-extrabold flex items-center gap-2">
-              <Plus size={15} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform" />
-              New Analysis
-            </span>
-            <Sparkles size={14} className="opacity-80" />
-          </button>
+        {/* Action & Search: ONLY WHEN LOGGED IN */}
+        {user && (
+          <div className="p-3 space-y-2 shrink-0 border-b border-border/50">
+            <button
+              type="button"
+              onClick={createNewChat}
+              className="w-full flex items-center justify-between px-3 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-semibold rounded-xl transition-all shadow-xs group cursor-pointer"
+            >
+              <span className="text-xs tracking-wide font-bold flex items-center gap-2 font-mono">
+                <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform" />
+                New Audit
+              </span>
+              <span className="text-[9px] font-mono font-normal opacity-60">⌘N</span>
+            </button>
 
-          {/* Search Box */}
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search reviews..."
-              className="w-full pl-8 pr-7 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted/50 outline-none focus:border-emerald-500/50 transition-all font-medium"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
-              >
-                <X size={12} />
-              </button>
-            )}
+            {/* Search Box */}
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter sessions..."
+                className="w-full pl-8 pr-7 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted/50 outline-none focus:border-zinc-500 transition-all font-mono"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* History List */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide px-3 py-1">
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-2">
           {renderSessionList()}
         </div>
 
         {/* User Footer */}
-        <div className="p-3 bg-surface border-t border-border space-y-2 shrink-0">
+        <div className="p-3 bg-surface border-t border-border shrink-0">
           {user ? (
-            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-background border border-border shadow-xs">
-              <img src={user.avatar} alt="User" className="w-8 h-8 rounded-lg ring-1 ring-border shadow-xs shrink-0" />
+            <div className="flex items-center gap-2.5 p-1.5 rounded-xl bg-background border border-border">
+              <img src={user.avatar} alt="User" className="w-7 h-7 rounded-lg ring-1 ring-border shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-bold text-foreground truncate">{user.name}</p>
                 <p className="text-[9px] font-medium text-muted truncate">{user.email}</p>
@@ -253,26 +249,15 @@ export const Sidebar = ({
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-2 text-muted text-[10px] font-bold">
-                <span>Guest Mode</span>
-                <span className="text-emerald-500 font-semibold">Local Storage</span>
-              </div>
-              <button
-                type="button"
-                onClick={onOpenLogin}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-background hover:bg-surface-hover border border-border text-foreground text-xs font-bold transition-all shadow-xs cursor-pointer"
-              >
-                <LogIn size={13} className="text-emerald-500" />
-                <span>Sign In with Google</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onOpenLogin}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-background hover:bg-surface-hover border border-border text-foreground text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <LogIn size={13} className="text-emerald-500" />
+              <span>Sign in with Google</span>
+            </button>
           )}
-
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background border border-border text-[9px] font-bold uppercase text-muted tracking-wider">
-            <Globe size={11} className="text-emerald-500" />
-            <span className="truncate">{lang} Mode</span>
-          </div>
         </div>
       </motion.aside>
 
@@ -292,96 +277,96 @@ export const Sidebar = ({
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="md:hidden fixed left-0 top-0 bottom-0 w-[85%] max-w-[320px] bg-surface border-r border-border z-50 flex flex-col overflow-hidden shadow-2xl"
+              className="md:hidden fixed left-0 top-0 bottom-0 w-[85%] max-w-[300px] bg-surface border-r border-border z-50 flex flex-col overflow-hidden shadow-2xl"
             >
               {/* Mobile Header */}
               <div className="flex items-center justify-between p-4 border-b border-border bg-surface shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <Logo size={32} />
-                  <h1 className="text-base font-black text-foreground font-display">
+                  <Logo size={28} />
+                  <h1 className="text-sm font-black text-foreground font-display">
                     CodeReview<span className="text-emerald-500">.AI</span>
                   </h1>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover"
+                  className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Mobile Actions */}
-              <div className="p-4 space-y-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => { createNewChat(); setIsOpen(false); }}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md shadow-emerald-500/25 transition-all text-xs uppercase tracking-wider cursor-pointer"
-                >
-                  <Plus size={16} strokeWidth={2.5} />
-                  New Review
-                </button>
+              {/* Mobile Actions: ONLY WHEN LOGGED IN */}
+              {user && (
+                <div className="p-3 space-y-2 shrink-0 border-b border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => { createNewChat(); setIsOpen(false); }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-bold rounded-xl shadow-xs transition-all text-xs uppercase tracking-wider cursor-pointer font-mono"
+                  >
+                    <Plus size={15} strokeWidth={2.5} />
+                    <span>New Audit</span>
+                  </button>
 
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search reviews..."
-                    className="w-full pl-9 pr-7 py-2 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted/50 outline-none"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Filter sessions..."
+                      className="w-full pl-8 pr-7 py-2 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted/50 outline-none focus:border-zinc-500 transition-all font-mono"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Mobile History */}
-              <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-1">
+              <div className="flex-1 overflow-y-auto scrollbar-hide px-2">
                 {renderSessionList(true)}
               </div>
 
               {/* Mobile Footer */}
-              <div className="p-4 border-t border-border bg-surface/50 space-y-3 shrink-0">
+              <div className="p-3 border-t border-border bg-surface shrink-0">
                 {user ? (
-                  <div className="p-2.5 rounded-xl bg-background border border-border flex items-center gap-3">
-                    <img src={user.avatar} alt="Avatar" className="w-8 h-8 rounded-lg shrink-0" />
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-background border border-border">
+                    <img src={user.avatar} alt="User" className="w-8 h-8 rounded-lg ring-1 ring-border shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-foreground truncate">{user.name}</p>
                       <p className="text-[10px] text-muted truncate">{user.email}</p>
                     </div>
                     <button
                       type="button"
-                      onClick={handleLogout}
-                      className="p-1.5 rounded-lg text-muted hover:text-red-500 hover:bg-red-500/10"
+                      onClick={() => {
+                        setIsOpen(false);
+                        handleLogout();
+                      }}
+                      className="p-1.5 rounded-lg text-muted hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
                     >
                       <LogOut size={16} />
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="p-2 rounded-xl bg-background border border-border text-center text-xs font-semibold text-muted">
-                      Guest Mode Active
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsOpen(false);
-                        onOpenLogin && onOpenLogin();
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
-                    >
-                      <LogIn size={15} />
-                      <span>Sign In with Google</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      onOpenLogin && onOpenLogin();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <LogIn size={15} />
+                    <span>Sign in with Google</span>
+                  </button>
                 )}
               </div>
             </motion.aside>

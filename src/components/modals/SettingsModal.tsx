@@ -1,12 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitForkIcon, Globe, Zap, X, ShieldCheck } from 'lucide-react';
+import { GitForkIcon, X, Check } from 'lucide-react';
+import { useState } from 'react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   githubToken: string;
   setGithubToken: (val: string) => void;
-  lang: string;
 }
 
 export const SettingsModal = ({
@@ -14,8 +14,19 @@ export const SettingsModal = ({
   onClose,
   githubToken,
   setGithubToken,
-  lang
 }: SettingsModalProps) => {
+  const [tempToken, setTempToken] = useState(githubToken);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    setGithubToken(tempToken);
+    setSaved(true);
+    setTimeout(() => {
+      setSaved(false);
+      onClose();
+    }, 400);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -23,36 +34,37 @@ export const SettingsModal = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 theme-transition overflow-y-auto"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 theme-transition overflow-y-auto"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            initial={{ scale: 0.96, opacity: 0, y: 12 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 15 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-background w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-[28px] border border-border p-5 sm:p-7 shadow-2xl relative inner-border scrollbar-hide my-auto"
+            exit={{ scale: 0.96, opacity: 0, y: 12 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-surface w-full max-w-md rounded-2xl border border-border p-6 shadow-2xl relative my-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
               <div>
-                <h3 className="text-base sm:text-lg font-black text-foreground tracking-tight uppercase font-display">System Settings</h3>
-                <p className="text-[10px] text-muted font-bold uppercase tracking-widest opacity-60">System Configuration</p>
+                <h3 className="text-base font-bold text-foreground">Settings</h3>
+                <p className="text-xs text-muted">Manage integrations and tokens</p>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-xl hover:bg-surface-hover text-muted hover:text-foreground transition-all cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-all cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 pt-5">
               {/* GitHub PAT */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-muted uppercase tracking-wider px-1 opacity-75">
-                  GitHub Personal Access Token (Optional)
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>GitHub Personal Access Token</span>
+                  <span className="text-[10px] font-normal text-muted">Optional</span>
                 </label>
                 <div className="relative">
                   <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
@@ -60,61 +72,35 @@ export const SettingsModal = ({
                   </div>
                   <input
                     type="password"
-                    value={githubToken}
-                    onChange={(e) => setGithubToken(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-foreground font-mono text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all placeholder:text-muted/30"
-                    placeholder="ghp_... (for private repos & PR reviews)"
+                    value={tempToken}
+                    onChange={(e) => setTempToken(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl text-foreground font-mono text-xs outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-muted/40"
+                    placeholder="ghp_... (Classic or Fine-grained PAT)"
                   />
                 </div>
-                <p className="text-[10px] text-muted/70 px-1">
-                  Needed only for scanning private repos and posting PR comments.
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Used only to read private repositories and post comments on Pull Requests.
                 </p>
-              </div>
-
-              {/* AI Engine Status */}
-              <div className="p-3.5 bg-surface border border-border rounded-xl flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg shrink-0">
-                  <ShieldCheck size={15} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-foreground uppercase tracking-wide">AI Gateway Auth</p>
-                  <p className="text-[10px] text-muted font-medium truncate">Managed via System Environment</p>
-                </div>
-                <div className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded border border-emerald-500/20 text-[9px] font-bold uppercase">Connected</div>
-              </div>
-
-              {/* Analysis Engine */}
-              <div className="p-3.5 bg-surface border border-border rounded-xl flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg shrink-0">
-                  <Zap size={15} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-foreground uppercase tracking-wide">Analysis Engine</p>
-                  <p className="text-[10px] text-muted font-medium truncate">CodeReview.AI High-Speed Neural Core</p>
-                </div>
-                <div className="px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded border border-purple-500/20 text-[9px] font-bold uppercase">Ready</div>
-              </div>
-
-              {/* Language */}
-              <div className="p-3.5 bg-surface border border-border rounded-xl flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500 shrink-0">
-                  <Globe size={15} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-foreground uppercase tracking-wide">Interface Language</p>
-                  <p className="text-[10px] text-muted font-medium truncate">{lang} Protocol Active</p>
-                </div>
-                <div className="px-2 py-0.5 bg-surface-hover rounded border border-border text-[9px] font-bold uppercase text-muted">Auto</div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full mt-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:-translate-y-0.5 transition-all duration-200 uppercase tracking-widest text-xs cursor-pointer"
-            >
-              Close
-            </button>
+            <div className="flex items-center justify-end gap-2.5 mt-6 pt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-medium text-muted hover:text-foreground hover:bg-surface-hover rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                {saved ? <Check size={14} className="text-emerald-500" /> : null}
+                <span>{saved ? 'Saved' : 'Save Changes'}</span>
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}

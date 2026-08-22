@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import type { ChatSession, Message, GithubReview, User } from '../types';
 import { analyzeCode, analyzePR } from '../services/groqService';
 import { fetchGithubContent, getOctokit, decodeBase64UTF8 } from '../services/githubService';
@@ -26,6 +27,20 @@ export const useChat = (
 
   // Synchronous ref to track loaded/new session IDs
   const loadedIdsRef = useRef<Set<string>>(new Set());
+  
+  // AbortController for immediate request cancellation on logout / session switch
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Auto-abort review on logout
+  useEffect(() => {
+    if (!user && isReviewing) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setIsReviewing(false);
+    }
+  }, [user, isReviewing]);
 
   // Keep a ref to sessions to avoid stale state in async callbacks
   const sessionsRef = useRef(sessions);
@@ -81,6 +96,12 @@ export const useChat = (
   }, []);
 
   const createNewChat = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsReviewing(false);
+
     const newId = crypto.randomUUID();
     const newSession: ChatSession = {
       id: newId,
@@ -119,6 +140,12 @@ export const useChat = (
   const handleReview = useCallback(async () => {
     const currentCode = code.trim();
     if (!currentCode || isReviewing) return;
+
+    // Reset and create fresh abort controller
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
     setIsReviewing(true);
     setError('');
@@ -166,17 +193,34 @@ export const useChat = (
       // Mark ID as loaded immediately to prevent cloud race condition
       loadedIdsRef.current.add(newId);
       setSessions(prev => user ? [createdSession!, ...prev] : [createdSession!]);
+      if (user?.email && createdSession) {
+        FirebaseService.saveSession(user.email, createdSession).catch(console.warn);
+      }
       navigate(`/chat/${newId}`);
     } else {
-      setSessions(prev => prev.map(s =>
-        s.id === targetId ? { ...s, messages: [...s.messages, userMessage] } : s
-      ));
+      setSessions(prev => prev.map(s => {
+        if (s.id === targetId) {
+          const updated = { ...s, messages: [...s.messages, userMessage] };
+          if (user?.email) {
+            FirebaseService.saveSession(user.email, updated).catch(console.warn);
+          }
+          return updated;
+        }
+        return s;
+      }));
     }
 
     setCode('');
 
     try {
-      const result = await analyzeCode(processedCode, apiKey, focusModes, lang);
+      const result = await analyzeCode(
+        processedCode, 
+        apiKey, 
+        focusModes, 
+        lang, 
+        abortControllerRef.current.signal
+      );
+
       const aiMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -198,7 +242,10 @@ export const useChat = (
         });
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to connect to AI Review Service.';
+      if (axios.isCancel(err) || (err instanceof Error && err.name === 'CanceledError')) {
+        return; // Request was aborted cleanly on logout
+      }
+      const msg = err instanceof Error ? err.message : 'Failed to connect to Code Review Engine.';
       setError(msg);
     } finally {
       setIsReviewing(false);
@@ -246,6 +293,11 @@ export const useChat = (
     setIsReviewing(true);
     setError('');
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     let targetId = activeId;
 
     try {
@@ -292,7 +344,7 @@ export const useChat = (
         ));
       }
 
-      const reviewData = await analyzePR(fullPatch, apiKey);
+      const reviewData = await analyzePR(fullPatch, apiKey, abortControllerRef.current.signal);
       const reviewList: GithubReview[] = reviewData.reviews || [];
       const summaryText = reviewList.length > 0
         ? `### Pull Request Audit: #${pullNumber}\nFound **${reviewList.length}** issues / recommendations across changed files:\n\n` +
@@ -318,6 +370,9 @@ export const useChat = (
         return s;
       }));
     } catch (err: unknown) {
+      if (axios.isCancel(err) || (err instanceof Error && err.name === 'CanceledError')) {
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to analyze PR.');
     } finally {
       setIsReviewing(false);

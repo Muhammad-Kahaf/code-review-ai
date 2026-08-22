@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Paperclip, GitForkIcon, ArrowUp, Loader2, AlertCircle, Shield, Sparkles, X } from 'lucide-react';
+import { Paperclip, GitForkIcon, ArrowUp, Loader2, AlertCircle, Shield, CornerDownLeft, X } from 'lucide-react';
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
 
 interface CommandBarProps {
@@ -44,7 +44,7 @@ export const CommandBar = ({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const scrollH = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${Math.min(scrollH, 200)}px`;
+      textareaRef.current.style.height = `${Math.min(scrollH, 180)}px`;
     }
   }, [code]);
 
@@ -58,7 +58,7 @@ export const CommandBar = ({
 
   return (
     <div className="absolute bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-4xl px-3 sm:px-6 md:px-8 pointer-events-none z-30">
-      <div className="pointer-events-auto bg-surface/90 dark:bg-surface/95 backdrop-blur-2xl border border-border shadow-2xl rounded-2xl sm:rounded-[26px] p-2 sm:p-3 flex flex-col gap-2 relative transition-all duration-300">
+      <div className="pointer-events-auto bg-surface/95 dark:bg-surface/98 backdrop-blur-2xl border border-border shadow-2xl rounded-2xl p-2 sm:p-2.5 flex flex-col gap-2 relative transition-all duration-200">
 
         {/* Error Toast Notification */}
         <AnimatePresence>
@@ -80,10 +80,10 @@ export const CommandBar = ({
           )}
         </AnimatePresence>
 
-        {/* Focus Mode Filter Chips */}
+        {/* Audit Filter Modules */}
         <div className="flex items-center gap-1 sm:gap-1.5 px-1 py-0.5 overflow-x-auto scrollbar-hide">
-          <span className="text-[9px] font-black uppercase tracking-widest text-muted/60 pl-1 pr-1 hidden sm:inline-block shrink-0">
-            Focus:
+          <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-muted/60 pl-1 pr-1 hidden sm:inline-block shrink-0">
+            AUDIT:
           </span>
           {ALL_FOCUS_MODES.map(mode => {
             const active = focusModes.includes(mode);
@@ -92,9 +92,9 @@ export const CommandBar = ({
                 key={mode}
                 type="button"
                 onClick={() => toggleFocusMode(mode)}
-                className={`px-2.5 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all duration-150 shrink-0 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-150 shrink-0 cursor-pointer ${
                   active
-                    ? 'bg-emerald-500 text-white shadow-xs'
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs'
                     : 'bg-background hover:bg-surface-hover text-muted hover:text-foreground border border-border/80'
                 }`}
               >
@@ -109,10 +109,10 @@ export const CommandBar = ({
           )}
         </div>
 
-        {/* Main Input Area */}
+        {/* Code Input Console */}
         <div
-          className={`flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl transition-all duration-200 ${
-            isDragging ? 'bg-emerald-500/10 ring-2 ring-emerald-500/30' : 'bg-background border border-border/60'
+          className={`flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl transition-all duration-200 ${
+            isDragging ? 'bg-emerald-500/10 ring-2 ring-emerald-500/30' : 'bg-background border border-border/70'
           }`}
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
@@ -131,23 +131,23 @@ export const CommandBar = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 cursor-pointer"
-            title="Upload Files"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 cursor-pointer"
+            title="Upload source file(s)"
           >
-            <Paperclip size={16} strokeWidth={2} />
+            <Paperclip size={16} strokeWidth={1.75} />
           </button>
 
           {/* GitHub Integration Button */}
           <button
             type="button"
             onClick={() => setShowGithubModal(true)}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-surface-hover text-muted hover:text-emerald-500 transition-all flex items-center justify-center shrink-0 cursor-pointer"
-            title="Review GitHub Repo or Pull Request"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 cursor-pointer"
+            title="Inspect GitHub repository or Pull Request"
           >
-            <GitForkIcon size={16} strokeWidth={2} />
+            <GitForkIcon size={16} strokeWidth={1.75} />
           </button>
 
-          {/* Text Area */}
+          {/* Text Input */}
           <textarea
             ref={textareaRef}
             rows={1}
@@ -159,8 +159,8 @@ export const CommandBar = ({
                 handleReview();
               }
             }}
-            placeholder={isDragging ? "Drop source files to inspect..." : "Paste code snippet, GitHub URL, or ask for analysis..."}
-            className="flex-1 bg-transparent border-none text-foreground font-mono text-xs sm:text-[13px] outline-none min-h-[36px] max-h-48 resize-none scrollbar-hide py-2 px-1 placeholder:text-muted/50 leading-relaxed"
+            placeholder={isDragging ? "Drop source code to inspect..." : "Paste code snippet, GitHub repository link, or ask for review..."}
+            className="flex-1 bg-transparent border-none text-foreground font-mono text-xs sm:text-[13px] outline-none min-h-[36px] max-h-44 resize-none scrollbar-hide py-2 px-1 placeholder:text-muted/50 leading-relaxed"
           />
 
           {/* Clear Button if text exists */}
@@ -168,36 +168,36 @@ export const CommandBar = ({
             <button
               type="button"
               onClick={() => setCode('')}
-              className="w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover flex items-center justify-center shrink-0 transition-colors"
+              className="w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover flex items-center justify-center shrink-0 transition-colors cursor-pointer"
               title="Clear input"
             >
               <X size={14} />
             </button>
           )}
 
-          {/* Send Action Button */}
+          {/* Execute Audit Button */}
           <motion.button
             type="button"
             disabled={!code.trim() || isReviewing}
             onClick={handleReview}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
-            title="Execute Code Review"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            title="Execute Code Audit"
           >
-            {isReviewing ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={18} strokeWidth={2.5} />}
+            {isReviewing ? <Loader2 size={15} className="animate-spin" /> : <ArrowUp size={16} strokeWidth={2.2} />}
           </motion.button>
         </div>
 
         {/* Footer Badges */}
-        <div className="flex items-center justify-between px-2 pt-0.5 text-[8px] sm:text-[9px] font-bold text-muted/60 uppercase tracking-widest">
+        <div className="flex items-center justify-between px-2 pt-0.5 text-[8px] sm:text-[9px] font-mono font-semibold text-muted/60 uppercase tracking-wider">
           <div className="flex items-center gap-1.5">
-            <Shield size={10} className="text-emerald-500" />
-            <span>End-to-End Encrypted</span>
+            <Shield size={11} className="text-emerald-500" />
+            <span>Encrypted Sandbox</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Sparkles size={10} className="text-emerald-500" />
-            <span className="hidden sm:inline">Press Enter to review</span>
+          <div className="flex items-center gap-1">
+            <CornerDownLeft size={10} className="text-muted" />
+            <span className="hidden sm:inline">Press Enter to audit</span>
             <span className="sm:hidden">Ready</span>
           </div>
         </div>

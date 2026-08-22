@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { googleLogout } from '@react-oauth/google';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import Prism from 'prismjs';
 import { Menu, Sun, Moon, Settings, Share2, LogIn } from 'lucide-react';
 
@@ -48,7 +48,6 @@ export default function App() {
     isLoadingMessages,
     focusModes, setFocusModes,
     error, setError,
-    lang,
     activeId,
     createNewChat,
     deleteSession,
@@ -96,12 +95,15 @@ export default function App() {
     Prism.highlightAll();
   }, [sessions, isReviewing]);
 
+  const navigate = useNavigate();
+
   const handleLogin = (userData: User) => setUser(userData);
 
   const handleLogout = () => {
     googleLogout();
     setUser(null);
     localStorage.clear();
+    navigate('/', { replace: true });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,7 +300,6 @@ export default function App() {
         onClose={() => setShowSettings(false)}
         githubToken={githubToken}
         setGithubToken={setGithubToken}
-        lang={lang}
       />
 
       <Sidebar 
@@ -311,7 +312,6 @@ export default function App() {
         createNewChat={createNewChat}
         deleteSession={deleteSession}
         handleLogout={handleLogout}
-        lang={lang}
         onOpenLogin={() => setShowLoginModal(true)}
       />
 
