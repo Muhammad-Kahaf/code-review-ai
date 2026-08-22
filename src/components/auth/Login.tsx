@@ -50,10 +50,10 @@ export const Login = ({ onLogin, onContinueGuest, canClose = true }: LoginProps)
           </p>
         </div>
 
-        <div className="space-y-4 pt-1">
+        <div className="space-y-4 pt-2">
           {/* Google Sign In Button */}
-          <div className="flex flex-col items-center justify-center">
-            <div className="w-full min-h-[44px] flex items-center justify-center overflow-hidden rounded-xl border border-border/80 shadow-xs hover:border-emerald-500/40 transition-all bg-white dark:bg-zinc-900">
+          <div className="flex flex-col items-center justify-center w-full">
+            <div className="w-full flex justify-center overflow-hidden rounded-2xl shadow-xs transition-all [&>div]:w-full [&_iframe]:w-full">
               <GoogleLogin
                 onSuccess={async (credentialResponse) => {
                   if (!credentialResponse.credential) return;
@@ -88,20 +88,20 @@ export const Login = ({ onLogin, onContinueGuest, canClose = true }: LoginProps)
                 theme="outline"
                 size="large"
                 shape="rectangular"
-                width="340"
+                width="360"
               />
             </div>
             {error && (
-              <div className="mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-left">
-                <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+              <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-left w-full">
+                <AlertCircle size={15} className="text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-[11px] font-medium text-amber-500 leading-snug">{error}</p>
               </div>
             )}
           </div>
 
-          <div className="relative flex py-1 items-center">
+          <div className="relative flex py-2 items-center">
             <div className="flex-grow border-t border-border"></div>
-            <span className="flex-shrink mx-3 text-[10px] font-bold text-muted/60 uppercase tracking-widest">or</span>
+            <span className="flex-shrink mx-3 text-[10px] font-black text-muted/60 uppercase tracking-widest">or</span>
             <div className="flex-grow border-t border-border"></div>
           </div>
 
@@ -109,15 +109,15 @@ export const Login = ({ onLogin, onContinueGuest, canClose = true }: LoginProps)
           <button
             type="button"
             onClick={onContinueGuest}
-            className="w-full py-3 px-4 rounded-xl bg-background hover:bg-surface-hover border border-border text-foreground text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all group cursor-pointer shadow-xs"
+            className="w-full py-3.5 px-5 rounded-2xl bg-background hover:bg-surface-hover border border-border text-foreground text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all duration-200 group cursor-pointer shadow-xs hover:border-emerald-500/40 hover:shadow-md"
           >
             <UserCheck size={16} className="text-emerald-500" />
             <span>Continue as Guest</span>
-            <ArrowRight size={14} className="text-muted group-hover:translate-x-1 transition-transform" />
+            <ArrowRight size={14} className="text-muted group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
           </button>
 
-          <p className="text-[10px] text-muted text-center leading-relaxed">
-            Guest mode allows instant code reviews without signing in.
+          <p className="text-[10px] text-muted text-center leading-relaxed pt-1">
+            Guest mode gives instant access without storing in cloud.
           </p>
         </div>
 
