@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { GROQ_BASE_URL, GROQ_MODEL } from '../config';
+import { GROQ_BASE_URL, GROQ_MODEL, GROQ_API_KEY } from '../config';
 
-export const analyzeCode = async (code: string, apiKey: string, focusModes: string[], language: string) => {
+export const analyzeCode = async (code: string, apiKey: string = GROQ_API_KEY, focusModes: string[], language: string) => {
   const response = await axios.post(
     `${GROQ_BASE_URL}/chat/completions`,
     {
@@ -41,7 +41,7 @@ export const analyzeCode = async (code: string, apiKey: string, focusModes: stri
   return response.data.choices[0].message.content;
 };
 
-export const analyzePR = async (combinedDiff: string, apiKey: string) => {
+export const analyzePR = async (combinedDiff: string, apiKey: string = GROQ_API_KEY) => {
   const prompt = `You are an elite AI Code Reviewer. Review the following GitHub Pull Request diff patches.
 You must output a strictly valid JSON object containing exactly one key: "reviews". The value of "reviews" must be an array of objects.
 Each object represents a specific issue on a specific line of code and must have exactly these keys:

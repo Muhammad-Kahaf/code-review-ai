@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Paperclip, GitForkIcon, Send, Loader, Shield, Cpu } from 'lucide-react';
+import { Paperclip, GitForkIcon, ArrowUp, Loader2, AlertCircle, Shield, Sparkles, X } from 'lucide-react';
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
 
 interface CommandBarProps {
@@ -17,7 +17,10 @@ interface CommandBarProps {
   handleFileUpload: (e: ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   setShowGithubModal: (val: boolean) => void;
+  onClearError?: () => void;
 }
+
+const ALL_FOCUS_MODES = ['Security', 'Performance', 'Clean Code', 'Logic', 'Architecture'];
 
 export const CommandBar = ({
   code,
@@ -32,53 +35,85 @@ export const CommandBar = ({
   onDrop,
   handleFileUpload,
   fileInputRef,
-  setShowGithubModal
+  setShowGithubModal,
+  onClearError
 }: CommandBarProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      const scrollH = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.min(scrollH, 200)}px`;
     }
   }, [code]);
 
-  return (
-    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 pointer-events-none z-30">
-      <div className="pointer-events-auto bg-surface/80 backdrop-blur-2xl border border-border shadow-2xl rounded-[28px] p-2 flex flex-col gap-2 relative">
+  const toggleFocusMode = (mode: string) => {
+    setFocusModes(prev =>
+      prev.includes(mode) ? prev.filter(m => m !== mode) : [...prev, mode]
+    );
+  };
 
-        {/* Subtle Error Message */}
+  const lineCount = code.trim() ? code.trim().split('\n').length : 0;
+
+  return (
+    <div className="absolute bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-4xl px-3 sm:px-6 md:px-8 pointer-events-none z-30">
+      <div className="pointer-events-auto bg-surface/90 dark:bg-surface/95 backdrop-blur-2xl border border-border shadow-2xl rounded-2xl sm:rounded-[26px] p-2 sm:p-3 flex flex-col gap-2 relative transition-all duration-300">
+
+        {/* Error Toast Notification */}
         <AnimatePresence>
           {error && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500/10 border border-red-500/20 px-4 py-1.5 rounded-full backdrop-blur-md shadow-sm"
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="absolute -top-12 sm:-top-14 left-2 right-2 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 bg-red-500/10 dark:bg-red-500/15 border border-red-500/30 px-3 sm:px-4 py-2 rounded-xl backdrop-blur-xl shadow-lg flex items-center justify-between sm:justify-start gap-2.5 z-40 max-w-md"
             >
-              <p className="text-[10px] font-black text-red-500 uppercase tracking-widest leading-none flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                {error}
-              </p>
+              <AlertCircle size={15} className="text-red-500 shrink-0" />
+              <p className="text-[11px] font-semibold text-red-500 truncate flex-1">{error}</p>
+              {onClearError && (
+                <button onClick={onClearError} className="p-0.5 rounded text-red-500/70 hover:text-red-500">
+                  <X size={13} />
+                </button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Context Chips */}
-        <div className="flex items-center gap-1.5 px-2 py-1 overflow-x-auto scrollbar-hide">
-          {['Security', 'Performance', 'Architecture'].map(mode => (
-            <button
-              key={mode}
-              onClick={() => setFocusModes(prev => prev.includes(mode) ? prev.filter(m => m !== mode) : [...prev, mode])}
-              className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${focusModes.includes(mode) ? 'bg-emerald-500 text-white shadow-lg' : 'bg-surface hover:bg-surface-hover text-muted hover:text-foreground border border-border'}`}
-            >
-              {mode}
-            </button>
-          ))}
+        {/* Focus Mode Filter Chips */}
+        <div className="flex items-center gap-1 sm:gap-1.5 px-1 py-0.5 overflow-x-auto scrollbar-hide">
+          <span className="text-[9px] font-black uppercase tracking-widest text-muted/60 pl-1 pr-1 hidden sm:inline-block shrink-0">
+            Focus:
+          </span>
+          {ALL_FOCUS_MODES.map(mode => {
+            const active = focusModes.includes(mode);
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => toggleFocusMode(mode)}
+                className={`px-2.5 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all duration-150 shrink-0 cursor-pointer ${
+                  active
+                    ? 'bg-emerald-500 text-white shadow-xs'
+                    : 'bg-background hover:bg-surface-hover text-muted hover:text-foreground border border-border/80'
+                }`}
+              >
+                {mode}
+              </button>
+            );
+          })}
+          {lineCount > 0 && (
+            <span className="ml-auto text-[9px] font-mono font-bold text-muted/60 px-2 shrink-0 hidden sm:inline-block">
+              {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+            </span>
+          )}
         </div>
 
+        {/* Main Input Area */}
         <div
-          className={`flex items-end gap-2 p-2 rounded-[22px] transition-all duration-300 ${isDragging ? 'bg-emerald-500/5 ring-4 ring-emerald-500/10' : ''}`}
+          className={`flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl transition-all duration-200 ${
+            isDragging ? 'bg-emerald-500/10 ring-2 ring-emerald-500/30' : 'bg-background border border-border/60'
+          }`}
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={onDrop}
@@ -89,48 +124,83 @@ export const CommandBar = ({
             onChange={handleFileUpload}
             className="hidden"
             multiple
-            accept=".js,.jsx,.ts,.tsx,.py,.css,.html,.json,.md,.txt,.java,.cpp,.c,.go,.rs,.rb,.php"
+            accept=".js,.jsx,.ts,.tsx,.py,.css,.html,.json,.md,.txt,.java,.cpp,.c,.go,.rs,.rb,.php,.sql,.yaml,.yml"
           />
+
+          {/* File Upload Button */}
           <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-10 h-10 rounded-xl hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 border border-transparent hover:border-border"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 cursor-pointer"
+            title="Upload Files"
           >
-            <Paperclip size={18} strokeWidth={2} />
+            <Paperclip size={16} strokeWidth={2} />
           </button>
 
+          {/* GitHub Integration Button */}
           <button
+            type="button"
             onClick={() => setShowGithubModal(true)}
-            className="w-10 h-10 rounded-xl hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 border border-transparent hover:border-border"
-            title="Browse GitHub Repositories"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-surface-hover text-muted hover:text-emerald-500 transition-all flex items-center justify-center shrink-0 cursor-pointer"
+            title="Review GitHub Repo or Pull Request"
           >
-            <GitForkIcon size={18} strokeWidth={2} />
+            <GitForkIcon size={16} strokeWidth={2} />
           </button>
 
+          {/* Text Area */}
           <textarea
             ref={textareaRef}
             rows={1}
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReview(); } }}
-            placeholder={isDragging ? "Drop files to analyze..." : "Message CodeReview.AI..."}
-            className="flex-1 bg-transparent border-none text-foreground font-sans text-[15px] outline-none min-h-[40px] max-h-60 resize-none scrollbar-hide py-2 px-2 placeholder:text-muted/50 font-medium"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && (e.ctrlKey || e.metaKey || window.innerWidth > 768)) {
+                e.preventDefault();
+                handleReview();
+              }
+            }}
+            placeholder={isDragging ? "Drop source files to inspect..." : "Paste code snippet, GitHub URL, or ask for analysis..."}
+            className="flex-1 bg-transparent border-none text-foreground font-mono text-xs sm:text-[13px] outline-none min-h-[36px] max-h-48 resize-none scrollbar-hide py-2 px-1 placeholder:text-muted/50 leading-relaxed"
           />
 
+          {/* Clear Button if text exists */}
+          {code.trim() && !isReviewing && (
+            <button
+              type="button"
+              onClick={() => setCode('')}
+              className="w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover flex items-center justify-center shrink-0 transition-colors"
+              title="Clear input"
+            >
+              <X size={14} />
+            </button>
+          )}
+
+          {/* Send Action Button */}
           <motion.button
+            type="button"
             disabled={!code.trim() || isReviewing}
             onClick={handleReview}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-10 h-10 rounded-xl bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-950 text-white flex items-center justify-center shrink-0 shadow-lg disabled:opacity-20 disabled:grayscale transition-all"
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            title="Execute Code Review"
           >
-            {isReviewing ? <Loader size={18} className="animate-spin" /> : <Send size={18} strokeWidth={2.5} />}
+            {isReviewing ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={18} strokeWidth={2.5} />}
           </motion.button>
         </div>
-      </div>
 
-      <div className="mt-4 flex items-center justify-center gap-6 opacity-30 pointer-events-none">
-        <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-[0.2em]"><Shield size={10} /> Encrypted</div>
-        <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-[0.2em]"><Cpu size={10} /> Llama 3.3 Core</div>
+        {/* Footer Badges */}
+        <div className="flex items-center justify-between px-2 pt-0.5 text-[8px] sm:text-[9px] font-bold text-muted/60 uppercase tracking-widest">
+          <div className="flex items-center gap-1.5">
+            <Shield size={10} className="text-emerald-500" />
+            <span>End-to-End Encrypted</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={10} className="text-emerald-500" />
+            <span className="hidden sm:inline">Press Enter to review</span>
+            <span className="sm:hidden">Ready</span>
+          </div>
+        </div>
       </div>
     </div>
   );

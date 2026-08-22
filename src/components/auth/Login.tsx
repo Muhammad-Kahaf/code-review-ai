@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { Cpu, Shield, Zap, Globe } from 'lucide-react';
+import { Shield, Zap, Globe } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import type { User } from '../../types';
+import { Logo } from '../common/Logo';
 import { useState } from 'react';
 
 interface LoginProps {
@@ -27,9 +28,9 @@ export const Login = ({ onLogin }: LoginProps) => {
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
-            className="w-16 h-16 bg-emerald-500 rounded-2xl mx-auto flex items-center justify-center text-white shadow-2xl shadow-emerald-500/20"
+            className="flex items-center justify-center"
           >
-            <Cpu size={32} strokeWidth={1.5} />
+            <Logo size={68} className="shadow-2xl shadow-emerald-500/25" />
           </motion.div>
           <div className="space-y-1">
             <h1 className="text-4xl font-black text-foreground tracking-tighter font-display">
